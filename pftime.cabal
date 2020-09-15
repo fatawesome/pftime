@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6e45da939fd4bd34a7fb3c8cb5a5bfbffa2099f50625c9e011ee5d59dfe087ef
+-- hash: 294d6faf28e55767f5e5f73a02d94403896a29ea9d2467d4bdb1a8d87a2f274e
 
 name:           pftime
 version:        0.1.0.0
@@ -28,7 +28,6 @@ source-repository head
 library
   exposed-modules:
       Lib
-      Timeline
   other-modules:
       Paths_pftime
   hs-source-dirs:

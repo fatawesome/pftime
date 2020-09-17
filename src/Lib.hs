@@ -5,62 +5,78 @@ where
 
 import Data.Monoid
 import Data.Semigroup
+import Data.List
 
-data Interval t e = Interval (t, t) e deriving Show
+data Interval t e = Interval (t, t) e deriving (Show)
+
+instance (Eq t) => Eq (Interval t e) where
+  Interval (start1, end1) payload1 == Interval (start2, end2) payload2
+    = start1 == start2 && end1 == end2
+
+-- | Instead, Interval should derive Ord with custom comparator, I suppose
+intervalOrdComparator :: Ord t => Interval t e -> Interval t e -> Ordering
+intervalOrdComparator i1 i2
+  | start1 <= start2 = LT
+  | otherwise = GT
+  where
+    Interval (start1, _) _ = i1
+    Interval (start2, _) _ = i2
 
 newtype Timeline t e = Timeline [Interval t e] deriving Show
 
--- эксперименты 
--- newtype TimelineWithoutConflicts t e = TimelineWithoutConflicts (Timeline t e)
+intervalsHaveConflict :: Ord t => Interval t e -> Interval t e -> Bool
+intervalsHaveConflict i1 i2
+  | end1 < start2 || start1 > end2 = False
+  | otherwise = True
+  where
+    Interval (start1, end1) _ = i1
+    Interval (start2, end2) _ = i2
 
--- instance Semigroup (TimelineWithoutConflicts t e) where
---   TimelineWithoutConflicts left <> TimelineWithoutConflicts right = TimelineWithoutConflicts (t1 <> t2)
+timelineHasConflict :: Ord t => Timeline t e -> Bool
+timelineHasConflict timeline = res
+  where
+    Timeline intervals = timeline
+    res = any (\x -> any (\y -> (x /= y) && intervalsHaveConflict x y) intervals) intervals
 
--- instance Semigroup (Timeline t e) where
---   Timeline x <> Timeline y = mconcat result
---     where
---       result :: [TimelineWithoutConflicts t e]
---       result = resolveConflicts x y
-
-mergeIntervals ::
+intervalAccumulator :: 
   Ord t =>
   (Interval t e -> Interval t e -> Interval t e) ->
-  Interval t e ->
-  Interval t e ->
-  Timeline t e
-mergeIntervals resolveConflict interval1 interval2
-  | (start1 < start2) && (end1 < end2) =
-    Timeline [interval1, interval2]
-  | (start1 > start2) && (end1 > end2) =
-    Timeline [interval2, interval1]
-  | otherwise = Timeline [resolveConflict interval1 interval2]
+  Interval t e -> 
+  [Interval t e] -> 
+  [Interval t e]
+intervalAccumulator _ interval [] = [interval]
+intervalAccumulator resolveConflict interval intervalList
+  | intervalsHaveConflict x interval 
+    = resolveConflict x interval : xs
+  | otherwise = interval : intervalList
   where
-    Interval (start1, end1) _ = interval1
-    Interval (start2, end2) _ = interval2
+    x:xs = intervalList
+    
 
--- / реализация работает только если timeline1 и timeline2 не содержат в себе конфликтов.
--- / TODO: функция может вернуть таймлайн с конфликтами
-concatTimelines ::
+-- | First, concat interval lists and sort them in the acsending order on interval start value.
+-- | Then recursively (or one by one for now) resolve conflicts, if present.
+timelineUnion :: 
   Ord t =>
   (Interval t e -> Interval t e -> Interval t e) ->
   Timeline t e ->
   Timeline t e ->
   Timeline t e
-concatTimelines resolvePayloadConflict timeline1 timeline2 
-  = Timeline (concatMap (\ (Timeline i) -> i) timelineList)
+timelineUnion resolveConflict t1 t2 = Timeline sortedIntervals
   where
-    Timeline intervals1 = timeline1
-    Timeline intervals2 = timeline2
-    timelineList = zipWith (mergeIntervals resolvePayloadConflict) intervals1 intervals2
+    Timeline intervalList1 = t1
+    Timeline intervalList2 = t2
+    sortedIntervals = sortBy intervalOrdComparator (intervalList1 <> intervalList2)
+    resolvedIntervals = foldr (intervalAccumulator resolveConflict) [] sortedIntervals
+    
 
 testResolveConflict :: Interval t e -> Interval t e -> Interval t e
 testResolveConflict left _ = left
 
 test :: Timeline Integer [Char]
-test = concatTimelines testResolveConflict timeline1 timeline2
+test = timelineUnion testResolveConflict timeline1 timeline2
   where
-    timeline1 = Timeline [Interval (1, 2) "a1", Interval (4, 5) "b1"]
-    timeline2 = Timeline [Interval (1, 3) "a2", Interval (4, 6) "b2"]
+    timeline1 = Timeline [Interval (1, 2) "a1", Interval (5, 6) "b1"]
+    timeline2 = Timeline [Interval (3, 4) "a2", Interval (4, 6) "b2"]
 
 showTest :: IO ()
 showTest = print test

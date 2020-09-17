@@ -22,6 +22,7 @@ intervalOrdComparator i1 i2
     Interval (start1, _) _ = i1
     Interval (start2, _) _ = i2
 
+-- | Timeline cannot have cconflicts inside itself 
 newtype Timeline t e = Timeline [Interval t e] deriving Show
 
 intervalsHaveConflict :: Ord t => Interval t e -> Interval t e -> Bool
@@ -54,7 +55,7 @@ intervalAccumulator resolveConflict interval intervalList
     
 
 -- | First, concat interval lists and sort them in the acsending order on interval start value.
--- | Then recursively (or one by one for now) resolve conflicts, if present.
+-- | Then one by one (better recursively ofc) resolve conflicts, if present.
 timelineUnion :: 
   Ord t =>
   (Interval t e -> Interval t e -> Interval t e) ->

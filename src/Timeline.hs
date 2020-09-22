@@ -1,7 +1,6 @@
 module Timeline where
 
 import           Control.Monad
-import           Data.List           (sortOn)
 import           Data.Monoid
 import           Data.Semigroup
 
@@ -49,12 +48,12 @@ fromOverlappingTimeline mergePayload (OverlappingTimeline xs) = Timeline (resolv
 toList :: Timeline t e -> [(Interval t, e)]
 toList = getTimeline
 
--- fromListWith
---   :: Ord t
---   => (e -> e -> e)     -- ^ merge payload
---   -> [(Interval t, e)] -- ^ list of intervals from which to create a Timeline
---   -> Timeline t e      -- ^ new Timeline
--- fromListWith f lst = _
+fromListWith
+  :: Ord t
+  => (e -> e -> e)     -- ^ merge payload
+  -> [(Interval t, e)] -- ^ list of intervals from which to create a Timeline
+  -> Timeline t e      -- ^ new Timeline
+fromListWith f lst = fromOverlappingTimeline f (fromList lst)
 
 -- mergeTimeline
 --   :: Ord t
@@ -68,3 +67,4 @@ emptyTimeline = Timeline []
 
 -- | just for testing purposes
 res = fromOverlappingTimeline (++) (OverlappingTimeline [(Interval (1, 4), "a"), (Interval (2, 5), "b")])
+res2 = fromListWith (++) [(Interval (2, 5), "b"), (Interval (1, 4), "a")]

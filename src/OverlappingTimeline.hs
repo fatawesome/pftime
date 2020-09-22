@@ -1,6 +1,7 @@
 module OverlappingTimeline where
 
 import           Interval
+import           Data.List           (sortOn)
 
 -- | OverlappingTimeline can have overlapping intervals.
 newtype OverlappingTimeline t e =
@@ -21,3 +22,9 @@ merge (OverlappingTimeline xs) (OverlappingTimeline ys) = OverlappingTimeline (m
     merge' ((i1, x):xs) ((i2, y):ys)
       | i1 < i2 = (i1, x) : merge' xs ((i2, y) : ys)
       | otherwise = (i2, y) : merge' ((i1, x) : xs) ys
+
+fromList 
+  :: Ord t
+  => [(Interval t, e)]
+  -> OverlappingTimeline t e
+fromList xs = OverlappingTimeline (sortOn fst xs)

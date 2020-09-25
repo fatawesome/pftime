@@ -1,13 +1,12 @@
+  {-# OPTIONS_GHC -Wall #-}
+
 module Timeline where
 
 import           Control.Monad
-import           Data.Monoid
-import           Data.Semigroup
 
 import           Interval
 import           OverlappingTimeline
 
-import           Data.List           (sort)
 
 -- | Timeline cannot have overlapping intervals.
 --
@@ -35,34 +34,62 @@ concatIntervalsWithPayloads
     ]
   | otherwise = [pair1, pair2]
 
--- LATEST 2 FUNCTIONS
--- !!!WIP!!! warning
--- | Resolve conflict so that the result is in the bounds of lesser interval
-resolveConflictToLeft
-  :: Ord t
-  => (e -> e -> e)
-  -> (Interval t, e)
-  -> (Interval t, e)
-  -> [(Interval t, e)]
-resolveConflictToLeft resolve (i1, e1) (i2, e2)
-  | end1 < start2 = [(Interval (start1, end1), e1)]
-  | otherwise =
-    [ (Interval (start1, start2), e1)
-    , (Interval (start2, end1), resolve e1 e2)
-    ]
-  where
-    [left, right] = sort [i1, i2]
-    Interval (start1, end1) = left
-    Interval (start2, end2) = right
-
 insert
   :: Ord t
   => (e -> e -> e)
   -> (Interval t, e)
   -> Timeline t e
   -> Timeline t e
-insert mergePayload elem (Timeline xs)
-  = Timeline (foldl (<>) [] (map (resolveConflictToLeft mergePayload elem) xs))
+insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft, xright), eX) : xs))
+  | right < xleft
+    = Timeline (el:x:xs)
+  | left < xleft && right < xright && right > xleft
+    = Timeline (
+      [ (Interval (left, xleft), e)
+      , (Interval (xleft, right), mergePayload eX e)
+      , (Interval (right, xright), eX)
+      ] <> xs
+    )
+  | left == xleft && right < xright
+    = Timeline (
+      [ (Interval (left, right), mergePayload eX e)
+      , (Interval (right, xright), e)
+      ] <> xs
+    )
+  | left == xleft && right == xright
+    = Timeline ((Interval (left, right), mergePayload eX e) : xs)
+  | left > xleft && right == xright
+    = Timeline (
+      [ (Interval (xleft, left), eX)
+      , (Interval (left, right), mergePayload eX e)
+      ] <> xs
+    )
+  | left > xleft && right > xright && left < xright
+    = Timeline (
+      [ (Interval (xleft, left), eX)
+      , (Interval (left, xright), mergePayload eX e)
+      ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
+    )
+  | left > xright 
+    = Timeline (x : getTimeline (insert mergePayload el (Timeline xs)))
+  | left == xleft && right > xright
+    = Timeline (
+      (Interval (left, xright), mergePayload eX e) 
+      : getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
+      )
+  | left > xleft && right < xright
+    = Timeline (
+      [ (Interval (left, xleft), eX)
+      , (Interval (xleft, right), mergePayload eX e)
+      , (Interval (right, xright), eX)
+      ] <> xs
+    )
+  | left < xleft && right > xright
+    = Timeline (
+      [ (Interval (left, xleft), e)
+      , (Interval (xleft, right), mergePayload eX e)
+      ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
+    )
 
 fromOverlappingTimeline
   :: Ord t
@@ -101,5 +128,3 @@ emptyTimeline = Timeline []
 res = fromOverlappingTimeline (++) (OverlappingTimeline [(Interval (1, 4), "a"), (Interval (2, 5), "b"), (Interval (6, 9), "b")])
 res2 = fromListWith (++) [(Interval (2, 5), "b"), (Interval (1, 4), "a")]
 res3 = mergeTimeline (++) (Timeline [(Interval (1, 4), "a"), (Interval (5, 7), "b")]) (Timeline [(Interval (2, 6), "a"), (Interval (7, 9), "b")])
-
-res5 = insert (++) (Interval (2, 6), "a") (Timeline [(Interval (1, 4), "a"), (Interval (5, 7), "b")])

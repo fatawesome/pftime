@@ -1,4 +1,4 @@
-  {-# OPTIONS_GHC -Wall #-}
+  {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 
 module Timeline where
 
@@ -40,6 +40,7 @@ insert
   -> (Interval t, e)
   -> Timeline t e
   -> Timeline t e
+insert _ el (Timeline []) = Timeline [el]
 insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft, xright), eX) : xs))
   | right < xleft
     = Timeline (el:x:xs)
@@ -91,6 +92,14 @@ insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft
       ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
     )
 
+mergeTimeline
+  :: Ord t
+  => (e -> e -> e)
+  -> Timeline t e
+  -> Timeline t e
+  -> Timeline t e
+mergeTimeline f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
+
 fromOverlappingTimeline
   :: Ord t
   => (e -> e -> e)           -- ^ merge payload
@@ -112,14 +121,6 @@ fromListWith
   -> [(Interval t, e)] -- ^ list of intervals from which to create a Timeline
   -> Timeline t e      -- ^ new Timeline
 fromListWith f lst = fromOverlappingTimeline f (fromList lst)
-
-mergeTimeline
-  :: Ord t
-  => (e -> e -> e)
-  -> Timeline t e
-  -> Timeline t e
-  -> Timeline t e
-mergeTimeline f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 emptyTimeline :: Timeline t e
 emptyTimeline = Timeline []

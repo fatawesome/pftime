@@ -2,8 +2,6 @@
 
 module Timeline where
 
-import           Control.Monad
-
 import           Interval
 import           OverlappingTimeline
 
@@ -15,25 +13,6 @@ newtype Timeline t e = Timeline
   { getTimeline :: [(Interval t, e)]    -- ^ Sorted list of intervals.
   } deriving (Show)
 
--- | Concat ordered intervals with payload (pair 1 < pair2)
--- | If intervals overlap, then create middle interval, which will have merged payload.
-concatIntervalsWithPayloads
-  :: Ord t
-  => (e -> e -> e)
-  -> (Interval t, e)
-  -> (Interval t, e)
-  -> [(Interval t, e)]
-concatIntervalsWithPayloads
-  mergePayload
-  pair1@(Interval (left1, right1), e1)
-  pair2@(Interval (left2, right2), e2)
-  | right1 > left2 =
-    [ (Interval (left1, left2), e1)
-    , (Interval (left2, right1), mergePayload e1 e2)
-    , (Interval (right1, right2), e2)
-    ]
-  | otherwise = [pair1, pair2]
-
 insert
   :: Ord t
   => (e -> e -> e)
@@ -42,7 +21,7 @@ insert
   -> Timeline t e
 insert _ el (Timeline []) = Timeline [el]
 insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft, xright), eX) : xs))
-  | right < xleft
+  | right <= xleft
     = Timeline (el:x:xs)
   | left < xleft && right < xright && right > xleft
     = Timeline (
@@ -71,7 +50,7 @@ insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft
       , (Interval (left, xright), mergePayload eX e)
       ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
     )
-  | left > xright 
+  | left >= xright 
     = Timeline (x : getTimeline (insert mergePayload el (Timeline xs)))
   | left == xleft && right > xright
     = Timeline (
@@ -80,15 +59,15 @@ insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft
       )
   | left > xleft && right < xright
     = Timeline (
-      [ (Interval (left, xleft), eX)
-      , (Interval (xleft, right), mergePayload eX e)
+      [ (Interval (xleft, left), eX)
+      , (Interval (left, right), mergePayload eX e)
       , (Interval (right, xright), eX)
       ] <> xs
     )
   | left < xleft && right > xright
     = Timeline (
       [ (Interval (left, xleft), e)
-      , (Interval (xleft, right), mergePayload eX e)
+      , (Interval (xleft, xright), mergePayload eX e)
       ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
     )
 
@@ -100,21 +79,28 @@ mergeTimeline
   -> Timeline t e
 mergeTimeline f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
+-- take
+-- takeWhile
+-- difference
+-- intersection
+
+-- | Create Timeline without conflicts from Overlapping Timleine
+-- | O((n^2)/2)
 fromOverlappingTimeline
   :: Ord t
   => (e -> e -> e)           -- ^ merge payload
   -> OverlappingTimeline t e -- ^ input timeline with conflicts
   -> Timeline t e            -- ^ timeline without conflicts
-fromOverlappingTimeline mergePayload (OverlappingTimeline xs) = Timeline (resolveConflicts xs)
+fromOverlappingTimeline mergePayload (OverlappingTimeline xs) = resolveConflicts xs
   where
-    resolveConflicts [] = []
-    resolveConflicts (t:ts) = foldM (concatIntervalsWithPayloads mergePayload) t ts
-    -- ^ f [ ((1, 4), 'a'), ((2, 5), 'b') ] = [ ((1, 2), 'a'), ((2, 4), 'ab'), ((4, 5), 'ab') ]
-    -- foldM (?)
+    resolveConflicts [] = emptyTimeline
+    resolveConflicts (t:ts) = foldr (insert mergePayload) (Timeline [t]) ts
 
 toList :: Timeline t e -> [(Interval t, e)]
 toList = getTimeline
 
+-- | As fromOverlappingTimeline, but from list
+-- | O((n^2)/2)
 fromListWith
   :: Ord t
   => (e -> e -> e)     -- ^ merge payload

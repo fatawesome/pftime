@@ -1,10 +1,8 @@
-  {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
-
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 module Timeline where
 
 import           Interval
 import           OverlappingTimeline
-
 
 -- | Timeline cannot have overlapping intervals.
 --
@@ -23,7 +21,7 @@ insert _ el (Timeline []) = Timeline [el]
 insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft, xright), eX) : xs))
   | right <= xleft
     = Timeline (el:x:xs)
-  | left < xleft && right < xright && right > xleft
+  | left < xleft && right < xright -- && right > xleft
     = Timeline (
       [ (Interval (left, xleft), e)
       , (Interval (xleft, right), mergePayload eX e)
@@ -50,11 +48,11 @@ insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft
       , (Interval (left, xright), mergePayload eX e)
       ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
     )
-  | left >= xright 
+  | left >= xright
     = Timeline (x : getTimeline (insert mergePayload el (Timeline xs)))
   | left == xleft && right > xright
     = Timeline (
-      (Interval (left, xright), mergePayload eX e) 
+      (Interval (left, xright), mergePayload eX e)
       : getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
       )
   | left > xleft && right < xright
@@ -93,7 +91,7 @@ fromOverlappingTimeline
   -> Timeline t e            -- ^ timeline without conflicts
 fromOverlappingTimeline mergePayload (OverlappingTimeline xs) = resolveConflicts xs
   where
-    resolveConflicts [] = emptyTimeline
+    resolveConflicts []     = emptyTimeline
     resolveConflicts (t:ts) = foldr (insert mergePayload) (Timeline [t]) ts
 
 toList :: Timeline t e -> [(Interval t, e)]
@@ -108,6 +106,9 @@ fromListWith
   -> Timeline t e      -- ^ new Timeline
 fromListWith f lst = fromOverlappingTimeline f (fromList lst)
 
+unsafeFromList :: [(Interval t, e)] -> Timeline t e
+unsafeFromList = Timeline
+
 emptyTimeline :: Timeline t e
 emptyTimeline = Timeline []
 
@@ -115,3 +116,10 @@ emptyTimeline = Timeline []
 res = fromOverlappingTimeline (++) (OverlappingTimeline [(Interval (1, 4), "a"), (Interval (2, 5), "b"), (Interval (6, 9), "b")])
 res2 = fromListWith (++) [(Interval (2, 5), "b"), (Interval (1, 4), "a")]
 res3 = mergeTimeline (++) (Timeline [(Interval (1, 4), "a"), (Interval (5, 7), "b")]) (Timeline [(Interval (2, 6), "a"), (Interval (7, 9), "b")])
+
+isAscending :: Ord a => [a] -> Bool
+isAscending xs = and (zipWith (<) xs (drop 1 xs))
+
+isValid :: Ord t => Timeline t e -> Bool
+isValid = isAscending . map fst . toList
+

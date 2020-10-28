@@ -3,6 +3,7 @@ module Timeline where
 
 import           Interval
 import           OverlappingTimeline
+import Data.List (find)
 
 -- | Timeline cannot have overlapping intervals.
 --
@@ -68,6 +69,12 @@ insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft
       , (Interval (xleft, xright), mergePayload eX e)
       ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
     )
+  | right == xright && left > xleft
+    = Timeline (
+      [ (Interval (xleft, left), eX)
+      , (Interval (left, right), mergePayload eX e)
+      ] <> xs
+    )
 
 mergeTimeline
   :: Ord t
@@ -77,8 +84,25 @@ mergeTimeline
   -> Timeline t e
 mergeTimeline f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
--- take
--- takeWhile
+take' 
+  :: Ord t
+  => Int
+  -> Timeline t e
+  -> [(Interval t, e)]
+take' 0 _                 = []
+take' _ (Timeline [])     = []
+take' n (Timeline (x:xs)) = x : take' (n-1) (Timeline xs)
+
+takeWhile' 
+  :: Ord t
+  => ((Interval t, e) -> Bool)
+  -> Timeline t e
+  -> [(Interval t, e)]
+takeWhile' _ (Timeline []) = []
+takeWhile' f (Timeline (x:xs))
+  | f x = x : takeWhile' f (Timeline xs)
+  | otherwise = []
+
 -- difference
 -- intersection
 
@@ -111,11 +135,6 @@ unsafeFromList = Timeline
 
 emptyTimeline :: Timeline t e
 emptyTimeline = Timeline []
-
--- | just for testing purposes
-res = fromOverlappingTimeline (++) (OverlappingTimeline [(Interval (1, 4), "a"), (Interval (2, 5), "b"), (Interval (6, 9), "b")])
-res2 = fromListWith (++) [(Interval (2, 5), "b"), (Interval (1, 4), "a")]
-res3 = mergeTimeline (++) (Timeline [(Interval (1, 4), "a"), (Interval (5, 7), "b")]) (Timeline [(Interval (2, 6), "a"), (Interval (7, 9), "b")])
 
 isAscending :: Ord a => [a] -> Bool
 isAscending xs = and (zipWith (<) xs (drop 1 xs))

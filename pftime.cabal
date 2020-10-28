@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5610b891c9b14842671b1bd86eaf482f5084aa5141a8d0a23e90cfb2fe8ef7ed
+-- hash: f917f5a9ae0c2460103520d39f55863a032afea4ffd2e94d96db6b40a928834b
 
 name:           pftime
 version:        0.1.0.0
@@ -51,7 +51,6 @@ executable pftime-exe
       QuickCheck
     , base >=4.7 && <5
     , hspec
-    , pftime
   default-language: Haskell2010
 
 test-suite pftime-test

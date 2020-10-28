@@ -17,11 +17,11 @@ merge
   -> OverlappingTimeline t e
 merge (OverlappingTimeline xs) (OverlappingTimeline ys) = OverlappingTimeline (merge' xs ys)
   where
-    merge' [] ys = ys
-    merge' xs [] = xs
-    merge' ((i1, x):xs) ((i2, y):ys)
-      | i1 < i2 = (i1, x) : merge' xs ((i2, y) : ys)
-      | otherwise = (i2, y) : merge' ((i1, x) : xs) ys
+    merge' [] ys' = ys'
+    merge' xs' [] = xs'
+    merge' ((i1, x):xs') ((i2, y):ys')
+      | i1 < i2 = (i1, x) : merge' xs' ((i2, y) : ys')
+      | otherwise = (i2, y) : merge' ((i1, x) : xs') ys'
 
 fromList 
   :: Ord t

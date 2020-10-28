@@ -4,6 +4,7 @@ module Timeline where
 import           Interval
 import           OverlappingTimeline
 import Data.List (find)
+import Data.Maybe (isJust, catMaybes, mapMaybe)
 
 -- | Timeline cannot have overlapping intervals.
 --
@@ -12,6 +13,7 @@ newtype Timeline t e = Timeline
   { getTimeline :: [(Interval t, e)]    -- ^ Sorted list of intervals.
   } deriving (Show)
 
+-- TODO: refactor in terms of `intersect` from Interval.hs
 insert
   :: Ord t
   => (e -> e -> e)
@@ -102,9 +104,35 @@ takeWhile' _ (Timeline []) = []
 takeWhile' f (Timeline (x:xs))
   | f x = x : takeWhile' f (Timeline xs)
   | otherwise = []
-
--- difference
--- intersection
+    
+findIntersection
+  :: Ord t
+  => Timeline t e          -- ^ timeline in which to search
+  -> (Interval t, e)       -- ^ interval to find intersection with TODO: replace pair with only Interval
+  -> Maybe (Interval t, e) -- ^ intersection or Nothing
+findIntersection (Timeline xs) (interval, payload) 
+  = case maybeIntersection of
+    Just x -> Just (x, payload)
+    Nothing -> Nothing
+  where
+    maybeIntersection = find (isJust . intersectIntervals interval) (map fst xs)
+  
+intersection
+  :: Ord t
+  => Timeline t e
+  -> Timeline t e
+  -> [(Interval t, e)]
+intersection (Timeline xs) y 
+  = mapMaybe (findIntersection y) xs   
+  
+--difference
+--  :: Ord t
+--  => Timeline t e
+--  -> Timeline t e
+--  -> [(Interval t, e)]
+--difference (Timeline []) _ = []
+--difference (Timeline xs) (Timeline []) = xs
+--difference (Timeline xs) (Timeline excludes) = _
 
 -- | Create Timeline without conflicts from Overlapping Timleine
 -- | O((n^2)/2)

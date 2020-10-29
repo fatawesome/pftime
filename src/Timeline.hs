@@ -13,7 +13,7 @@ newtype Timeline t e = Timeline
   { getTimeline :: [(Interval t, e)]    -- ^ Sorted list of intervals.
   } deriving (Show)
 
--- TODO: refactor in terms of `intersect` from Interval.hs
+-- TODO: refactor in terms of `intersectIntervals` from Interval.hs
 insert
   :: Ord t
   => (e -> e -> e)

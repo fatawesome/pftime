@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
+{-# LANGUAGE TupleSections #-}
 module Timeline where
 
 import           Interval
@@ -108,36 +109,49 @@ takeWhile' f (Timeline (x:xs))
     
 findIntersection
   :: Ord t
-  => Timeline t e          -- ^ timeline in which to search
-  -> (Interval t, e)       -- ^ interval to find intersection with TODO: replace pair with only Interval
-  -> Maybe (Interval t, e) -- ^ intersection or Nothing
-findIntersection (Timeline xs) (interval, payload) 
-  = case maybeIntersection of
-    Just x -> Just (x, payload)
-    Nothing -> Nothing
-  where
-    maybeIntersection = asum (map (intersectIntervals interval . fst) xs)
+  => Interval t         -- ^ timeline in which to search.
+  -> [Interval t]       -- ^ interval to find intersection with.
+  -> Maybe (Interval t) -- ^ intersection or Nothing.
+findIntersection interval xs = asum (map (intersectIntervals interval) xs)
   
 -- TODO: optimization
 -- As we know, Timeline is ascending and has no overlaps (see isValid).
--- So after each iteration processed interval can be dropped 
+-- So, after each iteration processed interval can be dropped, 
 -- thus decreasing number of operations to be performed in the next iteration. 
 intersection
   :: Ord t
   => Timeline t e
   -> Timeline t e
   -> [(Interval t, e)]
-intersection (Timeline xs) y 
-  = mapMaybe (findIntersection y) xs   
+intersection (Timeline xs) (Timeline ys) 
+  = mapMaybe (handleIntersectionWithPayload ys) xs
+  where
+    handleIntersectionWithPayload timeline interval  
+      = case findIntersectionFlip (map fst timeline) (fst interval) of
+        Just x -> Just (x, snd interval)
+        Nothing -> Nothing
+    findIntersectionFlip x y = findIntersection y x     
   
---difference
---  :: Ord t
---  => Timeline t e
---  -> Timeline t e
---  -> [(Interval t, e)]
---difference (Timeline []) _ = []
---difference (Timeline xs) (Timeline []) = xs
---difference (Timeline xs) (Timeline excludes) = _
+subtractFromInterval
+  :: Ord t
+  => Interval t
+  -> [Interval t]
+  -> [Interval t]
+subtractFromInterval interval = concatMap (subtractInterval interval) 
+  
+difference
+  :: Ord t
+  => Timeline t e
+  -> Timeline t e
+  -> [(Interval t, e)]
+difference (Timeline []) _ = []
+difference (Timeline xs) (Timeline []) = xs
+difference (Timeline xs) (Timeline excludes) 
+  = concatMap (handleSubtractWithPayload excludes) xs
+  where 
+    handleSubtractWithPayload timeline interval 
+      = map (, snd interval) (subtractFromIntervalFlipped (map fst timeline) (fst interval))
+    subtractFromIntervalFlipped x y = subtractFromInterval y x 
 
 -- | Create Timeline without conflicts from Overlapping Timeline
 -- | O((n^2)/2)

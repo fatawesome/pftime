@@ -15,8 +15,8 @@ intersectIntervals
   -> Maybe (Interval t)
 intersectIntervals x@(Interval (x1, x2)) y@(Interval (y1, y2))
   | x1 >= y1 && x2 <= y2 = Just x
+  | x1 < y1 && x2 > y2 = Just y
   | x1 >= y1 && x2 > y2 = Just (mkInterval (x1, y2))
-  | x1 <= y1 && x2 >= y2 = Just y
   | x1 <= y1 && x2 < y2 = Just (mkInterval (y1, x2))
   | otherwise = Nothing
   

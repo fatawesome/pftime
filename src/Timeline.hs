@@ -3,8 +3,8 @@ module Timeline where
 
 import           Interval
 import           OverlappingTimeline
-import Data.List (find)
-import Data.Maybe (isJust, catMaybes, mapMaybe)
+import Data.Maybe (mapMaybe)
+import Data.Foldable (asum)
 
 -- | Timeline cannot have overlapping intervals.
 --
@@ -115,7 +115,7 @@ findIntersection (Timeline xs) (interval, payload)
     Just x -> Just (x, payload)
     Nothing -> Nothing
   where
-    maybeIntersection = find (isJust . intersectIntervals interval) (map fst xs)
+    maybeIntersection = asum (map (intersectIntervals interval . fst) xs)
   
 intersection
   :: Ord t

@@ -113,31 +113,31 @@ findIntersection
   -> [Interval t]       -- ^ interval to find intersection with.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
 findIntersection interval xs = asum (map (intersectIntervals interval) xs)
-  
+
 -- TODO: optimization
 -- As we know, Timeline is ascending and has no overlaps (see isValid).
--- So, after each iteration processed interval can be dropped, 
--- thus decreasing number of operations to be performed in the next iteration. 
+-- So, after each iteration processed interval can be dropped,
+-- thus decreasing number of operations to be performed in the next iteration.
 intersection
   :: Ord t
   => Timeline t e
   -> Timeline t e
   -> Timeline t e
-intersection (Timeline xs) (Timeline ys) 
+intersection (Timeline xs) (Timeline ys)
   = unsafeFromList $ mapMaybe (handleIntersectionWithPayload ys) xs
   where
-    handleIntersectionWithPayload timeline interval  
+    handleIntersectionWithPayload timeline interval
       = case findIntersectionFlip (map fst timeline) (fst interval) of
         Just x -> Just (x, snd interval)
         Nothing -> Nothing
-    findIntersectionFlip x y = findIntersection y x     
-  
+    findIntersectionFlip x y = findIntersection y x
+
 subtractFromInterval
   :: Ord t
   => Interval t   -- ^ Interval to subtract from.
   -> [Interval t] -- ^ List of intervals which will be subtracted.
   -> [Interval t] -- ^ Resulting list of intervals.
-subtractFromInterval interval = concatMap (subtractInterval interval) 
+subtractFromInterval interval = concatMap (subtractInterval interval)
 
 -- TODO: optimization
 -- Number of iterations for one interval can be reduced given the fact that
@@ -151,12 +151,12 @@ difference
   -> Timeline t e
 difference (Timeline []) _ = Timeline []
 difference x (Timeline []) = x
-difference (Timeline xs) (Timeline excludes) 
+difference (Timeline xs) (Timeline excludes)
   = unsafeFromList $ concatMap (handleSubtractWithPayload excludes) xs
-  where 
-    handleSubtractWithPayload timeline interval 
+  where
+    handleSubtractWithPayload timeline interval
       = map (, snd interval) (subtractFromIntervalFlipped (map fst timeline) (fst interval))
-    subtractFromIntervalFlipped x y = subtractFromInterval y x 
+    subtractFromIntervalFlipped x y = subtractFromInterval y x
 
 -- | Create Timeline without conflicts from Overlapping Timeline
 -- | O((n^2)/2)

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 02f7b9024c522e703c68758a5f88b2b535387ec432ef45df5a9c387745d407d4
+-- hash: 503bb05755665683d4bc6cda746916a3e08cd38a58b1b64711d3879c809b9261
 
 name:           pftime
 version:        0.1.0.0
@@ -46,7 +46,7 @@ executable pftime-exe
       Paths_pftime
   hs-source-dirs:
       app
-  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , base >=4.7 && <5

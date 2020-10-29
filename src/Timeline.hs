@@ -21,7 +21,7 @@ insert
   -> Timeline t e
   -> Timeline t e
 insert _ el (Timeline []) = Timeline [el]
-insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft, xright), eX) : xs))
+insert mergePayload el@(Interval (left, right), e) timeline@(Timeline (x@(Interval (xleft, xright), eX) : xs))
   | right <= xleft
     = Timeline (el:x:xs)
   | left < xleft && right < xright -- && right > xleft
@@ -77,6 +77,7 @@ insert mergePayload el@(Interval (left, right), e) (Timeline (x@(Interval (xleft
       , (Interval (left, right), mergePayload eX e)
       ] <> xs
     )
+  | otherwise = timeline
 
 mergeTimeline
   :: Ord t
@@ -117,6 +118,10 @@ findIntersection (Timeline xs) (interval, payload)
   where
     maybeIntersection = asum (map (intersectIntervals interval . fst) xs)
   
+-- TODO: optimization
+-- As we know, Timeline is ascending and has no overlaps (see isValid).
+-- So after each iteration processed interval can be dropped 
+-- thus decreasing number of operations to be performed in the next iteration. 
 intersection
   :: Ord t
   => Timeline t e
@@ -134,7 +139,7 @@ intersection (Timeline xs) y
 --difference (Timeline xs) (Timeline []) = xs
 --difference (Timeline xs) (Timeline excludes) = _
 
--- | Create Timeline without conflicts from Overlapping Timleine
+-- | Create Timeline without conflicts from Overlapping Timeline
 -- | O((n^2)/2)
 fromOverlappingTimeline
   :: Ord t

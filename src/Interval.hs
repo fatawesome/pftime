@@ -20,12 +20,12 @@ intersectIntervals x@(Interval (x1, x2)) y@(Interval (y1, y2))
   | x1 <= y1 && x2 < y2 = Just (mkInterval (y1, x2))
   | otherwise = Nothing
   
---substract
+--subtract
 --  :: Ord t
 --  => Interval t
 --  -> Interval t
 --  -> Maybe [Interval t]
---substract x@(Interval (x1, x2)) y@(Interval (y1, y2))
+--subtract x@(Interval (x1, x2)) y@(Interval (y1, y2))
 --  = case intersectIntervals x y of
 --    Just (Interval (i1, i2)) -> []
 --    Nothing -> Nothing

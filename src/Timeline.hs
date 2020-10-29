@@ -122,9 +122,9 @@ intersection
   :: Ord t
   => Timeline t e
   -> Timeline t e
-  -> [(Interval t, e)]
+  -> Timeline t e
 intersection (Timeline xs) (Timeline ys) 
-  = mapMaybe (handleIntersectionWithPayload ys) xs
+  = unsafeFromList $ mapMaybe (handleIntersectionWithPayload ys) xs
   where
     handleIntersectionWithPayload timeline interval  
       = case findIntersectionFlip (map fst timeline) (fst interval) of
@@ -134,20 +134,25 @@ intersection (Timeline xs) (Timeline ys)
   
 subtractFromInterval
   :: Ord t
-  => Interval t
-  -> [Interval t]
-  -> [Interval t]
+  => Interval t   -- ^ Interval to subtract from.
+  -> [Interval t] -- ^ List of intervals which will be subtracted.
+  -> [Interval t] -- ^ Resulting list of intervals.
 subtractFromInterval interval = concatMap (subtractInterval interval) 
-  
+
+-- TODO: optimization
+-- Number of iterations for one interval can be reduced given the fact that
+-- Timeline is ascending and non-overlapping (see isValid).
+-- When x2 (end of interval) is less than y1 (beginning of the next interval to compare with)
+-- all subsequent operations for current interval can be canceled.
 difference
   :: Ord t
   => Timeline t e
   -> Timeline t e
-  -> [(Interval t, e)]
-difference (Timeline []) _ = []
-difference (Timeline xs) (Timeline []) = xs
+  -> Timeline t e
+difference (Timeline []) _ = Timeline []
+difference x (Timeline []) = x
 difference (Timeline xs) (Timeline excludes) 
-  = concatMap (handleSubtractWithPayload excludes) xs
+  = unsafeFromList $ concatMap (handleSubtractWithPayload excludes) xs
   where 
     handleSubtractWithPayload timeline interval 
       = map (, snd interval) (subtractFromIntervalFlipped (map fst timeline) (fst interval))

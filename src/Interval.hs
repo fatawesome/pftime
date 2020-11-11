@@ -2,9 +2,12 @@ module Interval where
 
 import Data.Maybe (catMaybes)
 
-
-newtype Interval t = Interval (t, t)
-  deriving (Eq, Ord, Show)
+-- | Temporal interval.
+-- 
+-- prop> fst (getInterval i) < snd (getInterval i)
+newtype Interval t = Interval {
+  getInterval :: (t, t) -- ^ A pair of points in time.
+} deriving (Eq, Ord, Show)
 
 mkInterval :: Ord t => (t, t) -> Interval t
 mkInterval (from, to)
@@ -40,3 +43,11 @@ subtractInterval x@(Interval (x1, x2)) y
   = case intersectIntervals x y of
     Just (Interval (i1, i2)) -> catMaybes [mkMaybeInterval (x1, i1), mkMaybeInterval (i2, x2)] 
     Nothing -> [x]
+    
+concat :: Interval t -> Interval t -> Interval t
+concat (Interval a) (Interval b) = Interval (fst a, snd b)
+
+
+areAdjacent :: Ord t => Interval t -> Interval t -> Bool
+areAdjacent (Interval (a1, a2)) (Interval (b1, b2))
+  = a2 == b1 || a1 == b2

@@ -18,6 +18,12 @@ import           OverlappingTimeline
 import Data.Maybe (mapMaybe)
 import Data.Foldable (asum)
 
+-- $setup
+-- >>> import Control.Applicative
+-- >>> import Test.QuickCheck
+-- >>> instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where arbitrary = mkInterval <$> arbitrary
+-- >>> instance (Arbitrary e, Ord t, Arbitrary t) => Arbitrary (Timeline t e) where arbitrary = fromListWith const <$> arbitrary
+
 -----------------------------------------------------------------------------
 -- * Timeline type
 
@@ -42,7 +48,7 @@ fromOverlappingTimeline
   -> Timeline t p            -- ^ timeline without conflicts
 fromOverlappingTimeline mergePayload (OverlappingTimeline xs) = resolveConflicts xs
   where
-    resolveConflicts []     = emptyTimeline
+    resolveConflicts []     = empty
     resolveConflicts (t:ts) = foldr (insert mergePayload) (Timeline [t]) ts
 
 -- | /O(n^2)/. Construct timeline from list of intervals with given payload conflicts resolver
@@ -57,10 +63,17 @@ fromListWith f lst = fromOverlappingTimeline f (fromList lst)
 unsafeFromList :: [(Interval t, p)] -> Timeline t p
 unsafeFromList = Timeline
 
--- | /O(1)/. Construct empty timeline.
-emptyTimeline :: Timeline t p
-emptyTimeline = Timeline []
+-- | /O(1)/. Empty timeline.
+--
+-- > length (toList empty) == 0
+empty :: Timeline t p
+empty = Timeline []
 
+-- | /O(1)/. Timeline with one event.
+--
+-- > length (toList (singleton (Interval (0, 1), 'a'))) == 1
+singleton :: Ord t => (Interval t, p) -> Timeline t p
+singleton event = Timeline [event]
 
 -----------------------------------------------------------------------------
 -- * Insertion

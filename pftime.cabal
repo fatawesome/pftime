@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b7bfa3ef0dd7e27bf19fa3266d9d382730e7e09959891cb5ab8fc1acd050ece2
+-- hash: 1bdd6f5b658847561a4681a4ee27100ac5e314770d55060c40a7cf0aa8ba2c5d
 
 name:           pftime
 version:        0.1.0.0
@@ -84,6 +84,7 @@ test-suite doctests
     , hspec
     , pftime
     , split
+    , template-haskell
   default-language: Haskell2010
 
 test-suite pftime-test

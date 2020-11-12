@@ -66,3 +66,4 @@ tests:
     - Glob
     - QuickCheck
     - pftime
+    - template-haskell

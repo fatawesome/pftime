@@ -3,42 +3,56 @@
 -- Module : PictoralTimeline
 -- 
 -- = Description
--- Pictoral representation of Timeline structure
--- > mkPictoralTimeline "XXX YYY ZZZ"
+-- Pictoral representation of Timeline structure.
+-- For example, timeline "XXX YYY ZZZ"
+-- >>> mkPictoralTimeline "XXX YYY ZZZ"
+-- Timeline {getTimeline = [(Interval {getInterval = (0,3)},'X'),(Interval {getInterval = (4,7)},'Y'),(Interval {getInterval = (8,11)},'Z')]}
 -----------------------------------------------------------------------------
-module PictoralTimeline where
+module PictoralTimeline (
+  PictoralTimeline,
+  mkPictoralTimeline
+) where
 
 import Timeline
 import Interval
 
--- | Pictoral representation of Timeline structure.
--- 
--- >>> |-------| 
+-----------------------------------------------------------------------------
+-- * Pictoral timeline type
+
 type PictoralTimeline = Timeline Int Char
+
+-----------------------------------------------------------------------------
+-- * Construction
 
 -- | Create PictoralTimeline from string.
 -- Time is relative to beginning of the string i.e. time (head str) == 0 
 mkPictoralTimeline :: String -> PictoralTimeline
-mkPictoralTimeline []  = emptyTimeline
-mkPictoralTimeline [_] = emptyTimeline
+mkPictoralTimeline []  = empty
+mkPictoralTimeline [_] = empty
 mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
   where
     f el [] = [el]
     f el (x:xs)
-      | x `adjacent` el = merge el x : xs
+      | areAdjacentWithPayload x el = mergeAdjacentIntervals el x : xs
       | otherwise = el : x : xs 
 
-merge :: (Interval t, p) -> (Interval t, p) -> (Interval t, p)
-merge (Interval (a1, _), aP) (Interval (_, b2), _)
+-----------------------------------------------------------------------------
+-- * Helpers
+-- = WARNING
+-- Following functions are ment to be used only in this module
+
+mergeAdjacentIntervals :: (Interval t, p) -> (Interval t, p) -> (Interval t, p)
+mergeAdjacentIntervals (Interval (a1, _), aP) (Interval (_, b2), _)
   = (Interval (a1, b2), aP)
 
-adjacent
+areAdjacentWithPayload
   :: (Ord t, Ord a) 
   => (Interval t, a)
   -> (Interval t, a) 
   -> Bool
-adjacent (a, aPayload) (b, bPayload) 
+areAdjacentWithPayload (a, aPayload) (b, bPayload)
   = areAdjacent a b && aPayload == bPayload    
+
 
 parse :: String -> [(Interval Int, Char)]
 parse = filter (\el -> snd el /= ' ') . zipWith (\ i c -> (Interval (i, i + 1), c)) [0 .. ]

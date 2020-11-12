@@ -1,14 +1,34 @@
+-----------------------------------------------------------------------------
+-- |
+-- Module : Interval
+-- Maintainer : fatawesomeee@gmail.com
+-- = Interval
+--
+-- The @'Interval' t@ is a pair of boundaries of type /t/ 
+-----------------------------------------------------------------------------
+
 module Interval where
 
 import Data.Maybe (catMaybes)
 
--- | Temporal interval.
--- 
+-- $setup
+--
+-- >>> import Test.QuickCheck
+-- >>> instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where arbitrary = mkInterval <$> arbitrary
+
+-----------------------------------------------------------------------------
+-- * Interval type
+
+-- | Temporal interval is a pair of points which represent bounded time period. 
 -- prop> fst (getInterval i) < snd (getInterval i)
 newtype Interval t = Interval {
   getInterval :: (t, t) -- ^ A pair of points in time.
 } deriving (Eq, Ord, Show)
 
+-----------------------------------------------------------------------------
+-- * Construction
+
+-- | /O(1)/. If /from/ > /to/, switch them.
 mkInterval :: Ord t => (t, t) -> Interval t
 mkInterval (from, to)
   | from <= to = Interval (from, to)
@@ -46,7 +66,6 @@ subtractInterval x@(Interval (x1, x2)) y
     
 concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
-
 
 areAdjacent :: Ord t => Interval t -> Interval t -> Bool
 areAdjacent (Interval (a1, a2)) (Interval (b1, b2))

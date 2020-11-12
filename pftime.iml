@@ -45,5 +45,20 @@
     <orderEntry type="library" name="split-0.2.3.4" level="project" />
     <orderEntry type="library" name="extra-1.7.7" level="project" />
     <orderEntry type="library" name="process-1.6.9.0" level="project" />
+    <orderEntry type="library" name="doctest-0.16.3" level="project" />
+    <orderEntry type="library" name="base-compat-0.11.1" level="project" />
+    <orderEntry type="library" name="code-page-0.2" level="project" />
+    <orderEntry type="library" name="ghc-8.8.4" level="project" />
+    <orderEntry type="library" name="ghc-paths-0.1.0.12" level="project" />
+    <orderEntry type="library" name="syb-0.7.1" level="project" />
+    <orderEntry type="library" name="binary-0.8.7.0" level="project" />
+    <orderEntry type="library" name="ghc-boot-8.8.4" level="project" />
+    <orderEntry type="library" name="ghc-heap-8.8.4" level="project" />
+    <orderEntry type="library" name="ghci-8.8.4" level="project" />
+    <orderEntry type="library" name="hpc-0.6.0.3" level="project" />
+    <orderEntry type="library" name="terminfo-0.4.1.4" level="project" />
+    <orderEntry type="library" name="Glob-0.10.1" level="project" />
+    <orderEntry type="library" name="dlist-0.8.0.8" level="project" />
+    <orderEntry type="library" name="transformers-compat-0.6.5" level="project" />
   </component>
 </module>

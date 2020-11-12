@@ -34,6 +34,7 @@ newtype Timeline t p = Timeline
 -- * Construction
 
 -- | /O(n^2)/. Construct Timeline from Overlapping Timeline with given payload conflicts resolver
+-- 
 fromOverlappingTimeline
   :: Ord t
   => (p -> p -> p)           -- ^ payload conflicts resolver

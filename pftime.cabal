@@ -1,10 +1,10 @@
-cabal-version: 1.12
+cabal-version: 1.24
 
 -- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7d9cf753f943d10550fb67f4ebb67a674583b8d31016d3b7d19d51e9c03fb3db
+-- hash: b7bfa3ef0dd7e27bf19fa3266d9d382730e7e09959891cb5ab8fc1acd050ece2
 
 name:           pftime
 version:        0.1.0.0
@@ -16,7 +16,7 @@ maintainer:     example@example.com
 copyright:      2020 Author name here
 license:        BSD3
 license-file:   LICENSE
-build-type:     Simple
+build-type:     Custom
 extra-source-files:
     README.md
     ChangeLog.md
@@ -24,6 +24,12 @@ extra-source-files:
 source-repository head
   type: git
   location: https://github.com/githubuser/pftime
+
+custom-setup
+  setup-depends:
+      Cabal
+    , base
+    , cabal-doctest >=1.0.2 && <1.1
 
 library
   exposed-modules:
@@ -59,9 +65,30 @@ executable pftime-exe
     , split
   default-language: Haskell2010
 
+test-suite doctests
+  type: exitcode-stdio-1.0
+  main-is: doctests.hs
+  other-modules:
+      IntervalSpec
+      Main
+      TimelineSpec
+      Paths_pftime
+  hs-source-dirs:
+      test
+  build-depends:
+      Glob
+    , QuickCheck
+    , base
+    , doctest
+    , extra >=1.7.7
+    , hspec
+    , pftime
+    , split
+  default-language: Haskell2010
+
 test-suite pftime-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Main.hs
   other-modules:
       IntervalSpec
       TimelineSpec
@@ -74,5 +101,6 @@ test-suite pftime-test
     , base >=4.7 && <5
     , extra >=1.7.7
     , hspec
+    , pftime
     , split
   default-language: Haskell2010

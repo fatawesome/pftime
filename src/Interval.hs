@@ -74,6 +74,14 @@ subtractInterval x@(Interval (x1, x2)) y
 concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
 
-areAdjacent :: Ord t => Interval t -> Interval t -> Bool
-areAdjacent (Interval (a1, a2)) (Interval (b1, b2))
+-- |
+-- prop> adjacent (Interval (1,2)) (Interval (2,3)) == True
+-- prop> adjacent (Interval (1,2)) (Interval (4,5)) == False
+-- prop> adjacent (Interval (2,3)) (Interval (1,2)) == True
+adjacent 
+  :: Ord t 
+  => Interval t 
+  -> Interval t 
+  -> Bool
+adjacent (Interval (a1, a2)) (Interval (b1, b2))
   = a2 == b1 || a1 == b2

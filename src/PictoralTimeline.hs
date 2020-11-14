@@ -37,24 +37,24 @@ mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
     f el (x:xs)
       | areAdjacentWithPayload x el = mergeAdjacentIntervals el x : xs
       | otherwise = el : x : xs
-      
+
 -- * Representation
 
 toString :: PictoralTimeline -> String
 toString (Timeline []) = ""
-toString (Timeline xs) = result 
+toString (Timeline xs) = result
   where
     start = replicate (fst $ getInterval $ fst (head xs)) ' '
-    (result, _) = helper (start, xs) 
+    (result, _) = helper (start, xs)
 
 helper :: (String, [(Interval Int, Char)]) -> (String, [(Interval Int, Char)])
 helper (string, []) = (string, [])
 helper (string, x@(Interval (left, right), char) : xs)
   | length string < left = helper (string ++ emptiness (left - length string), x:xs)
-  | otherwise = helper (string ++ replicate (right - left) char, xs)  
-  
-emptiness 
-  :: Int    -- ^ Length of empty space 
+  | otherwise = helper (string ++ replicate (right - left) char, xs)
+
+emptiness
+  :: Int    -- ^ Length of empty space
   -> String -- ^ String with N spaces
 emptiness n = replicate n ' '
 
@@ -73,7 +73,7 @@ areAdjacentWithPayload
   -> (Interval t, a) 
   -> Bool
 areAdjacentWithPayload (a, aPayload) (b, bPayload)
-  = areAdjacent a b && aPayload == bPayload    
+  = adjacent a b && aPayload == bPayload
 
 
 parse :: String -> [(Interval Int, Char)]

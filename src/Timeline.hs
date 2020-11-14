@@ -12,6 +12,7 @@
 module Timeline where
 
 import Prelude hiding (take, takeWhile)
+import Event
 
 import           Interval
 import           OverlappingTimeline
@@ -138,13 +139,17 @@ insert mergePayload el@(Interval (left, right), e) timeline@(Timeline (x@(Interv
       , (Interval (xleft, xright), mergePayload eX e)
       ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
     )
-  | right == xright && left > xleft
-    = Timeline (
-      [ (Interval (xleft, left), eX)
-      , (Interval (left, right), mergePayload eX e)
-      ] <> xs
-    )
   | otherwise = timeline
+  
+--insert2
+--  :: Ord t
+--  => (p -> p -> p)
+--  -> Event t p
+--  -> Timeline t p
+--  -> Timeline t p
+--insert2 f event@(Event i p) timeline@(Timeline (x@(Event iX pX) : xs))
+--  | snd i <= fst iX 
+--    = Timeline (event : x : xs)
   
 -----------------------------------------------------------------------------
 -- * Query

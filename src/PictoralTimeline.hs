@@ -8,9 +8,11 @@
 -- >>> mkPictoralTimeline "XXX YYY ZZZ"
 -- Timeline {getTimeline = [(Interval {getInterval = (0,3)},'X'),(Interval {getInterval = (4,7)},'Y'),(Interval {getInterval = (8,11)},'Z')]}
 -----------------------------------------------------------------------------
+
 module PictoralTimeline (
   PictoralTimeline,
-  mkPictoralTimeline
+  mkPictoralTimeline,
+  toString
 ) where
 
 import Timeline
@@ -34,12 +36,32 @@ mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
     f el [] = [el]
     f el (x:xs)
       | areAdjacentWithPayload x el = mergeAdjacentIntervals el x : xs
-      | otherwise = el : x : xs 
+      | otherwise = el : x : xs
+      
+-- * Representation
+
+toString :: PictoralTimeline -> String
+toString (Timeline []) = ""
+toString (Timeline xs) = result 
+  where
+    start = replicate (fst $ getInterval $ fst (head xs)) ' '
+    (result, _) = helper (start, xs) 
+
+helper :: (String, [(Interval Int, Char)]) -> (String, [(Interval Int, Char)])
+helper (string, []) = (string, [])
+helper (string, x@(Interval (left, right), char) : xs)
+  | length string < left = helper (string ++ emptiness (left - length string), x:xs)
+  | otherwise = helper (string ++ replicate (right - left) char, xs)  
+  
+emptiness 
+  :: Int    -- ^ Length of empty space 
+  -> String -- ^ String with N spaces
+emptiness n = replicate n ' '
 
 -----------------------------------------------------------------------------
 -- * Helpers
 -- = WARNING
--- Following functions are ment to be used only in this module
+-- Following functions are meant to be used only in this module
 
 mergeAdjacentIntervals :: (Interval t, p) -> (Interval t, p) -> (Interval t, p)
 mergeAdjacentIntervals (Interval (a1, _), aP) (Interval (_, b2), _)

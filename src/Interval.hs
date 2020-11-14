@@ -29,11 +29,18 @@ newtype Interval t = Interval {
 -- * Construction
 
 -- | /O(1)/. If /from/ > /to/, switch them.
+--
+-- > mkInterval (0, 1) == Interval (0, 1)
+-- > mkInterval (1, 0) == Interval (0, 1)
 mkInterval :: Ord t => (t, t) -> Interval t
 mkInterval (from, to)
   | from <= to = Interval (from, to)
   | otherwise  = Interval (to, from)
 
+-----------------------------------------------------------------------------
+-- * Combine 
+
+-- | Intersect two intervals if it is possible.
 intersectIntervals
   :: Ord t 
   => Interval t

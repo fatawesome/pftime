@@ -23,6 +23,7 @@ import Data.Foldable (asum)
 -- >>> import Test.QuickCheck
 -- >>> instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where arbitrary = mkInterval <$> arbitrary
 -- >>> instance (Arbitrary e, Ord t, Arbitrary t) => Arbitrary (Timeline t e) where arbitrary = fromListWith const <$> arbitrary
+-- $setup
 
 -----------------------------------------------------------------------------
 -- * Timeline type
@@ -234,6 +235,8 @@ findIntersection
   -> [Interval t]       -- ^ interval to find intersection with.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
 findIntersection interval xs = asum (map (intersectIntervals interval) xs)
+
+-- haveConflicts
 
 subtractFromIntervalList
   :: Ord t

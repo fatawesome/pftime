@@ -17,6 +17,7 @@ module PictoralTimeline (
 
 import Timeline
 import Interval
+import Event
 
 -----------------------------------------------------------------------------
 -- * Pictoral timeline type
@@ -35,7 +36,7 @@ mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
   where
     f el [] = [el]
     f el (x:xs)
-      | areAdjacentWithPayload x el = mergeAdjacentIntervals el x : xs
+      | Event.adjacent x el = mergeAdjacentEvents el x : xs
       | otherwise = el : x : xs
 
 -- * Representation
@@ -44,12 +45,12 @@ toString :: PictoralTimeline -> String
 toString (Timeline []) = ""
 toString (Timeline xs) = result
   where
-    start = replicate (fst $ getInterval $ fst (head xs)) ' '
+    start = replicate (fst $ getInterval $ interval (head xs)) ' '
     (result, _) = helper (start, xs)
 
-helper :: (String, [(Interval Int, Char)]) -> (String, [(Interval Int, Char)])
+helper :: (String, [Event Int Char]) -> (String, [Event Int Char])
 helper (string, []) = (string, [])
-helper (string, x@(Interval (left, right), char) : xs)
+helper (string, x@(Event (Interval (left, right)) char) : xs)
   | length string < left = helper (string ++ emptiness (left - length string), x:xs)
   | otherwise = helper (string ++ replicate (right - left) char, xs)
 
@@ -63,18 +64,11 @@ emptiness n = replicate n ' '
 -- = WARNING
 -- Following functions are meant to be used only in this module
 
-mergeAdjacentIntervals :: (Interval t, p) -> (Interval t, p) -> (Interval t, p)
-mergeAdjacentIntervals (Interval (a1, _), aP) (Interval (_, b2), _)
-  = (Interval (a1, b2), aP)
+mergeAdjacentEvents :: Event t p -> Event t p -> Event t p
+mergeAdjacentEvents (Event (Interval (a1, _)) aP) (Event (Interval (_, b2)) _)
+  = Event (Interval (a1, b2)) aP
 
-areAdjacentWithPayload
-  :: (Ord t, Ord a) 
-  => (Interval t, a)
-  -> (Interval t, a) 
-  -> Bool
-areAdjacentWithPayload (a, aPayload) (b, bPayload)
-  = adjacent a b && aPayload == bPayload
-
-
-parse :: String -> [(Interval Int, Char)]
-parse = filter (\el -> snd el /= ' ') . zipWith (\ i c -> (Interval (i, i + 1), c)) [0 .. ]
+parse :: String -> [Event Int Char]
+parse s = map Event.fromTuple (tuples s)
+  where
+    tuples str = filter (\el -> snd el /= ' ') (zipWith (\ i c -> (Interval (i, i + 1), c)) [0 .. ] str)

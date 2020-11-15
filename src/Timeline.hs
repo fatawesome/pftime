@@ -34,7 +34,7 @@ import Data.Foldable (asum)
 -- prop> isAscending t
 -- prop> not (haveConflicts (toList t))
 newtype Timeline t p = Timeline
-  { getTimeline :: [(Interval t, p)] -- ^ Sorted list of intervals.
+  { getTimeline :: [Event t p] -- ^ Sorted list of intervals.
   } deriving (Show)
 
 
@@ -48,21 +48,21 @@ fromOverlappingTimeline
   => (p -> p -> p)           -- ^ payload conflicts resolver
   -> OverlappingTimeline t p -- ^ input timeline with conflicts
   -> Timeline t p            -- ^ timeline without conflicts
-fromOverlappingTimeline mergePayload (OverlappingTimeline xs) = resolveConflicts xs
+fromOverlappingTimeline f (OverlappingTimeline xs) = resolveConflicts xs
   where
     resolveConflicts []     = empty
-    resolveConflicts (t:ts) = foldr (insert mergePayload) (Timeline [t]) ts
+    resolveConflicts (t:ts) = foldr (insert f) (Timeline [t]) ts
 
 -- | /O(n^2)/. Construct timeline from list of intervals with given payload conflicts resolver
 fromListWith
   :: Ord t
   => (p -> p -> p)     -- ^ payload conflicts resolver
-  -> [(Interval t, p)] -- ^ list of intervals from which to create a Timeline
+  -> [Event t p] -- ^ list of intervals from which to create a Timeline
   -> Timeline t p      -- ^ new Timeline
 fromListWith f lst = fromOverlappingTimeline f (fromList lst)
 
 -- | /O(1)/. Construct timeline from list without preserving timeline properties.
-unsafeFromList :: [(Interval t, p)] -> Timeline t p
+unsafeFromList :: [Event t p] -> Timeline t p
 unsafeFromList = Timeline
 
 -- | /O(1)/. Empty timeline.
@@ -74,7 +74,7 @@ empty = Timeline []
 -- | /O(1)/. Timeline with one event.
 --
 -- > length (toList (singleton (Interval (0, 1), 'a'))) == 1
-singleton :: Ord t => (Interval t, p) -> Timeline t p
+singleton :: Event t p -> Timeline t p
 singleton event = Timeline [event]
 
 -----------------------------------------------------------------------------
@@ -84,90 +84,134 @@ singleton event = Timeline [event]
 -- | Safely insert an element into the Timeline
 insert
   :: Ord t
-  => (e -> e -> e)
-  -> (Interval t, e)
-  -> Timeline t e
-  -> Timeline t e
-insert _ el (Timeline []) = Timeline [el]
-insert mergePayload el@(Interval (left, right), e) timeline@(Timeline (x@(Interval (xleft, xright), eX) : xs))
-  | right <= xleft
-    = Timeline (el:x:xs)
-  | left < xleft && right < xright -- && right > xleft
+  => (p -> p -> p)
+  -> Event t p
+  -> Timeline t p
+  -> Timeline t p
+insert _ event (Timeline []) = Timeline [event]
+insert 
+  f 
+  event@(Event (Interval (yleft, yright)) pY) 
+  timeline@(Timeline (x@(Event (Interval (xleft, xright)) pX) : xs))
+ 
+  -- 1
+  --    xxx
+  -- yyy
+  | yright <= xleft
+    = Timeline (event : x : xs)
+    
+  -- 2
+  --  xxx
+  -- yyy
+  | yleft < xleft && yright < xright 
     = Timeline (
-      [ (Interval (left, xleft), e)
-      , (Interval (xleft, right), mergePayload eX e)
-      , (Interval (right, xright), eX)
-      ] <> xs
-    )
-  | left == xleft && right < xright
-    = Timeline (
-      [ (Interval (left, right), mergePayload eX e)
-      , (Interval (right, xright), e)
-      ] <> xs
-    )
-  | left == xleft && right == xright
-    = Timeline ((Interval (left, right), mergePayload eX e) : xs)
-  | left > xleft && right == xright
-    = Timeline (
-      [ (Interval (xleft, left), eX)
-      , (Interval (left, right), mergePayload eX e)
-      ] <> xs
-    )
-  | left > xleft && right > xright && left < xright
-    = Timeline (
-      [ (Interval (xleft, left), eX)
-      , (Interval (left, xright), mergePayload eX e)
-      ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
-    )
-  | left >= xright
-    = Timeline (x : getTimeline (insert mergePayload el (Timeline xs)))
-  | left == xleft && right > xright
-    = Timeline (
-      (Interval (left, xright), mergePayload eX e)
-      : getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
+        [ Event (Interval (yleft, xleft)) pY
+        , Event (Interval (xleft, yright)) (f pX pY)
+        , Event (Interval (yright, xright)) pX
+        ] <> xs
       )
-  | left > xleft && right < xright
+      
+  -- 3
+  --  xxx
+  -- yyyy
+  | yleft < xleft && yright == xright 
     = Timeline (
-      [ (Interval (xleft, left), eX)
-      , (Interval (left, right), mergePayload eX e)
-      , (Interval (right, xright), eX)
-      ] <> xs
-    )
-  | left < xleft && right > xright
+        [ Event (Interval (yleft, xleft)) pY
+        , Event (Interval (xleft, yright)) (f pX pY)
+        ] <> xs
+      )
+  
+  -- 4
+  -- xxx
+  --    yyy 
+  | yleft >= xright
+    = Timeline (x : getTimeline (insert f event (Timeline xs)))
+    
+  -- 5
+  -- xxx
+  --  yyy
+  | yleft > xleft && yright > xright 
     = Timeline (
-      [ (Interval (left, xleft), e)
-      , (Interval (xleft, xright), mergePayload eX e)
-      ] <> getTimeline (insert mergePayload (Interval (xright, right), e) (Timeline xs))
-    )
-  | otherwise = timeline
+        [ Event (Interval (xleft, yleft)) pX
+        , Event (Interval (xleft, yright)) (f pX pY)
+        , Event (Interval (xright, yright)) pY
+        ] <> xs
+      )
+     
+  -- 6 
+  -- xxx
+  -- yyyy
+  | yleft == xleft && yright > xright
+    = Timeline (
+        [ Event (Interval (yleft, xright)) (f pX pY)
+        , Event (Interval (xright, yright)) pY
+        ] <> xs
+      )
   
---insert2
---  :: Ord t
---  => (p -> p -> p)
---  -> Event t p
---  -> Timeline t p
---  -> Timeline t p
---insert2 f event@(Event i p) timeline@(Timeline (x@(Event iX pX) : xs))
---  | snd i <= fst iX 
---    = Timeline (event : x : xs)
+  -- 7
+  -- xxx
+  -- yyy
+  | yleft == xleft && yright == xright
+    = Timeline $ Event (Interval (yleft, yright)) (f pX pY) : xs
+      
+  -- 8
+  --  xxx
+  -- yyyyy
+  | yleft < xleft && yright > xright 
+    = Timeline (
+        [ Event (Interval (yleft, xleft)) pY
+        , Event (Interval (xleft, yright)) (f pX pY)
+        ] <> getTimeline (insert f (Event (Interval (xright, yright)) pY) (Timeline xs))
+      )
   
+  -- 9
+  -- xxxxx
+  --  yyy
+  | yleft > xleft && yright < xright
+    = Timeline (
+        [ Event (Interval (xleft, yleft)) pX
+        , Event (Interval (yleft, yright)) (f pX pY)
+        , Event (Interval (yright, xright)) pX
+        ] <> xs
+      ) 
+  
+  -- 10
+  -- xxxx
+  -- yyy
+  | yleft == xleft && yright < xright
+    = Timeline (
+        [ Event (Interval (yleft, yright)) (f pX pY)
+        , Event (Interval (yright, xright)) pX
+        ] <> xs
+      )
+      
+  -- 11
+  -- xxxx
+  --  yyy
+  | yleft > xleft && yright == xright
+    = Timeline (
+        [ Event (Interval (xleft, yleft)) pX
+        , Event (Interval (yleft, yright)) (f pX pY)
+        ] <> xs
+      )
+      
 -----------------------------------------------------------------------------
 -- * Query
 
 take
   :: Ord t
   => Int
-  -> Timeline t e
-  -> [(Interval t, e)]
+  -> Timeline t p
+  -> [Event t p]
 take 0 _                 = []
 take _ (Timeline [])     = []
 take n (Timeline (x:xs)) = x : take (n-1) (Timeline xs)
 
 takeWhile
   :: Ord t
-  => ((Interval t, e) -> Bool)
-  -> Timeline t e
-  -> [(Interval t, e)]
+  => (Event t p -> Bool)
+  -> Timeline t p
+  -> [Event t p]
 takeWhile _ (Timeline []) = []
 takeWhile f (Timeline (x:xs))
   | f x = x : takeWhile f (Timeline xs)
@@ -178,11 +222,12 @@ takeWhile f (Timeline (x:xs))
 
 union
   :: Ord t
-  => (e -> e -> e)
-  -> Timeline t e
-  -> Timeline t e
-  -> Timeline t e
+  => (p -> p -> p)
+  -> Timeline t p
+  -> Timeline t p
+  -> Timeline t p
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
+
 
 -- TODO: optimization
 -- As we know, Timeline is ascending and has no overlaps (see isValid).
@@ -190,15 +235,15 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 -- thus decreasing number of operations to be performed in the next iteration.
 intersection
   :: Ord t
-  => Timeline t e
-  -> Timeline t e
-  -> Timeline t e
+  => Timeline t p
+  -> Timeline t p
+  -> Timeline t p
 intersection (Timeline xs) (Timeline ys)
   = unsafeFromList $ mapMaybe (handleIntersectionWithPayload ys) xs
   where
-    handleIntersectionWithPayload timeline interval
-      = case findIntersectionFlip (map fst timeline) (fst interval) of
-        Just x -> Just (x, snd interval)
+    handleIntersectionWithPayload t (Event i p)
+      = case findIntersectionFlip (map interval t) i of
+        Just x -> Just $ Event x p 
         Nothing -> Nothing
     findIntersectionFlip x y = findIntersection y x
 
@@ -222,14 +267,14 @@ intersection (Timeline xs) (Timeline ys)
 -- * Conversion
 
 -- | Convert Timeline to list of Intervals
-toList :: Timeline t e -> [(Interval t, e)]
+toList :: Timeline t p -> [Event t p]
 toList = getTimeline
 
 isAscending :: Ord a => [a] -> Bool
 isAscending xs = and (zipWith (<) xs (drop 1 xs))
 
-isValid :: Ord t => Timeline t e -> Bool
-isValid = isAscending . map fst . toList
+isValid :: Ord t => Timeline t p -> Bool
+isValid = isAscending . map interval . toList
 
 -----------------------------------------------------------------------------
 -- * Helpers
@@ -239,7 +284,7 @@ findIntersection
   => Interval t         -- ^ timeline in which to search.
   -> [Interval t]       -- ^ interval to find intersection with.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
-findIntersection interval xs = asum (map (intersectIntervals interval) xs)
+findIntersection i xs = asum (map (intersectIntervals i) xs)
 
 -- haveConflicts
 
@@ -248,7 +293,7 @@ subtractFromIntervalList
   => [(Interval t, e)] -- ^ List of intervals from which to subtract TODO: get rid of payloads here
   -> Interval t        -- ^ Interval to subtract.
   -> [(Interval t, e)] -- ^ Resulting list of intervals.
-subtractFromIntervalList xs interval = concatMap (handleSubtractWithPayload interval) xs
+subtractFromIntervalList xs i = concatMap (handleSubtractWithPayload i) xs
   where
     handleSubtractWithPayload x y = map (, snd y) (subtractIntervalFlip x (fst y))
     subtractIntervalFlip x y = subtractInterval y x 

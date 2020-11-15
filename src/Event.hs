@@ -7,6 +7,9 @@ data Event t p = Event {
   payload :: p
 } deriving (Show, Eq)
 
+fromTuple :: (Interval t, p) -> Event t p
+fromTuple (i, p) = Event i p
+
 adjacent
   :: (Ord t, Eq p) 
   => Event t p

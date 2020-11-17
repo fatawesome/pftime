@@ -21,8 +21,6 @@ import Data.Foldable (asum)
 
 -- $setup
 -- >>> import PictoralTimeline
--- >>> let a = mkPictoralTimeline "aaa"
--- >>> let b = mkPictoralTimeline "    bbb"
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
 -- >>> let overlapping = OverlappingTimeline.fromList [event_0_2_a, event_1_3_b]
@@ -91,6 +89,50 @@ singleton event = Timeline [event]
 
 -- TODO: refactor in terms of `intersectIntervals` from Interval.hs
 -- | Safely insert an element into the Timeline
+-- 
+-- Case 1: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline "   xxx")
+-- "yyyxxx"
+-- 
+-- Case 2: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline " xxx")
+-- "yyyx"
+-- 
+-- Case 3: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,4)) 'y') (mkPictoralTimeline " xxx")
+-- "yyyy"
+-- 
+-- Case 4: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (3,6)) 'y') (mkPictoralTimeline "xxx")
+-- "xxxyyy"
+-- 
+-- Case 5: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (1,4)) 'y') (mkPictoralTimeline "xxx")
+-- "xyyy"
+--
+-- Case 6: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,4)) 'y') (mkPictoralTimeline "xxx")
+-- "yyyy"
+-- 
+-- Case 7: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline "xxx")
+-- "yyy"
+-- 
+-- Case 8: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,5)) 'y') (mkPictoralTimeline " xxx")
+-- "yyyyy"
+-- 
+-- Case 9: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (1,4)) 'y') (mkPictoralTimeline "xxxxx")
+-- "xyyyx"
+-- 
+-- Case 10: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline "xxxx")
+-- "yyyx"
+-- 
+-- Case 11: 
+-- >>> toString $ insert (\_ y -> y) (Event (Interval (1,4)) 'y') (mkPictoralTimeline "xxxx")
+-- "xyyy"
 insert
   :: Ord t
   => (p -> p -> p)
@@ -169,7 +211,7 @@ insert
   | yleft < xleft && yright > xright 
     = Timeline (
         [ Event (Interval (yleft, xleft)) pY
-        , Event (Interval (xleft, yright)) (f pX pY)
+        , Event (Interval (xleft, xright)) (f pX pY)
         ] <> getTimeline (insert f (Event (Interval (xright, yright)) pY) (Timeline xs))
       )
   

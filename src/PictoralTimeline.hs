@@ -5,8 +5,8 @@
 -- = Description
 -- Pictoral representation of Timeline structure.
 -- For example, timeline "XXX YYY ZZZ"
--- >>> mkPictoralTimeline "XXX YYY ZZZ"
--- Timeline {getTimeline = [(Interval {getInterval = (0,3)},'X'),(Interval {getInterval = (4,7)},'Y'),(Interval {getInterval = (8,11)},'Z')]}
+-- > mkPictoralTimeline "XXX YYY ZZZ"
+-- Timeline [Event (Interval (0,3)) 'X'}, Event (Interval (4,7)) 'Y'}, Event (Interval (8,11)) 'Z'}]
 -----------------------------------------------------------------------------
 
 module PictoralTimeline (

@@ -20,10 +20,9 @@ import Data.Maybe (mapMaybe)
 import Data.Foldable (asum)
 
 -- $setup
--- >>> import Control.Applicative
--- >>> import Test.QuickCheck
--- >>> instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where arbitrary = mkInterval <$> arbitrary
--- >>> instance (Arbitrary e, Ord t, Arbitrary t) => Arbitrary (Timeline t e) where arbitrary = fromListWith const <$> arbitrary
+-- >>> import PictoralTimeline
+-- >>> let a = mkPictoralTimeline "aaa"
+-- >>> let b = mkPictoralTimeline "    bbb"
 -- $setup
 
 -----------------------------------------------------------------------------
@@ -31,11 +30,11 @@ import Data.Foldable (asum)
 
 -- | Timeline
 --
--- prop> isAscending t
--- prop> not (haveConflicts (toList t))
+-- > isAscending t
+-- > not (haveConflicts (toList t))
 newtype Timeline t p = Timeline
   { getTimeline :: [Event t p] -- ^ Sorted list of intervals.
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 
 -----------------------------------------------------------------------------
@@ -43,6 +42,10 @@ newtype Timeline t p = Timeline
 
 -- | /O(n^2)/. Construct Timeline from Overlapping Timeline with given payload conflicts resolver
 -- 
+-- >>> let overlapping = OverlappingTimeline.fromList [Event (Interval (0,2)) "a", Event (Interval (1,3)) "b"]
+-- >>> fromOverlappingTimeline (++) overlapping == Timeline [Event (Interval (0,1)) "a", Event (Interval (1,2)) "ab", Event (Interval (2,3)) "b"]
+-- True
+--
 fromOverlappingTimeline
   :: Ord t
   => (p -> p -> p)           -- ^ payload conflicts resolver
@@ -133,7 +136,7 @@ insert
   | yleft > xleft && yright > xright 
     = Timeline (
         [ Event (Interval (xleft, yleft)) pX
-        , Event (Interval (xleft, yright)) (f pX pY)
+        , Event (Interval (yleft, xright)) (f pX pY)
         , Event (Interval (xright, yright)) pY
         ] <> xs
       )

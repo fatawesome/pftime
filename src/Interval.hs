@@ -20,7 +20,7 @@ import Data.Maybe (catMaybes)
 -- * Interval type
 
 -- | Temporal interval is a pair of points which represent bounded time period. 
--- prop> fst (getInterval i) < snd (getInterval i)
+-- > fst (getInterval i) < snd (getInterval i)
 newtype Interval t = Interval {
   getInterval :: (t, t) -- ^ A pair of points in time.
 } deriving (Eq, Ord, Show)
@@ -30,8 +30,8 @@ newtype Interval t = Interval {
 
 -- | /O(1)/. If /from/ > /to/, switch them.
 --
--- > mkInterval (0, 1) == Interval (0, 1)
--- > mkInterval (1, 0) == Interval (0, 1)
+-- prop> mkInterval (0, 1) == Interval (0, 1)
+-- prop> mkInterval (1, 0) == Interval (0, 1)
 mkInterval :: Ord t => (t, t) -> Interval t
 mkInterval (from, to)
   | from <= to = Interval (from, to)

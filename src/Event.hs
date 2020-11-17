@@ -7,9 +7,15 @@ data Event t p = Event {
   payload :: p
 } deriving (Show, Eq)
 
+-- | /O(1)/.
+--
+-- prop> fromTuple (Interval (1,2), 'a') == Event (Interval (1,2)) 'a' 
 fromTuple :: (Interval t, p) -> Event t p
 fromTuple (i, p) = Event i p
 
+-- | /O(1)/. Events are adjancent if one strictly follows other and their payloads are equal.
+--
+-- prop> Event.adjacent (Event (Interval (1,2)) 'a') (Event (Interval (2,3)) 'a') == True
 adjacent
   :: (Ord t, Eq p) 
   => Event t p

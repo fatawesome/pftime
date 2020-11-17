@@ -91,46 +91,57 @@ singleton event = Timeline [event]
 -- | Safely insert an element into the Timeline
 -- 
 -- Case 1: 
+-- 
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline "   xxx")
 -- "yyyxxx"
 -- 
--- Case 2: 
+-- Case 2:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline " xxx")
 -- "yyyx"
 -- 
--- Case 3: 
+-- Case 3:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,4)) 'y') (mkPictoralTimeline " xxx")
 -- "yyyy"
 -- 
--- Case 4: 
+-- Case 4:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (3,6)) 'y') (mkPictoralTimeline "xxx")
 -- "xxxyyy"
 -- 
--- Case 5: 
+-- Case 5:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (1,4)) 'y') (mkPictoralTimeline "xxx")
 -- "xyyy"
 --
--- Case 6: 
+-- Case 6:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,4)) 'y') (mkPictoralTimeline "xxx")
 -- "yyyy"
 -- 
--- Case 7: 
+-- Case 7:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline "xxx")
 -- "yyy"
 -- 
--- Case 8: 
+-- Case 8:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,5)) 'y') (mkPictoralTimeline " xxx")
 -- "yyyyy"
 -- 
 -- Case 9: 
+-- 
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (1,4)) 'y') (mkPictoralTimeline "xxxxx")
 -- "xyyyx"
 -- 
--- Case 10: 
+-- Case 10:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,3)) 'y') (mkPictoralTimeline "xxxx")
 -- "yyyx"
 -- 
--- Case 11: 
+-- Case 11:
+--  
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (1,4)) 'y') (mkPictoralTimeline "xxxx")
 -- "xyyy"
 insert

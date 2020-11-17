@@ -23,6 +23,9 @@ import Data.Foldable (asum)
 -- >>> import PictoralTimeline
 -- >>> let a = mkPictoralTimeline "aaa"
 -- >>> let b = mkPictoralTimeline "    bbb"
+-- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
+-- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
+-- >>> let overlapping = OverlappingTimeline.fromList [event_0_2_a, event_1_3_b]
 -- $setup
 
 -----------------------------------------------------------------------------
@@ -42,10 +45,7 @@ newtype Timeline t p = Timeline
 
 -- | /O(n^2)/. Construct Timeline from Overlapping Timeline with given payload conflicts resolver
 -- 
--- >>> let overlapping = OverlappingTimeline.fromList [Event (Interval (0,2)) "a", Event (Interval (1,3)) "b"]
--- >>> fromOverlappingTimeline (++) overlapping == Timeline [Event (Interval (0,1)) "a", Event (Interval (1,2)) "ab", Event (Interval (2,3)) "b"]
--- True
---
+-- prop> fromOverlappingTimeline (++) overlapping == Timeline [Event (Interval (0,1)) "a", Event (Interval (1,2)) "ab", Event (Interval (2,3)) "b"]
 fromOverlappingTimeline
   :: Ord t
   => (p -> p -> p)           -- ^ payload conflicts resolver
@@ -57,6 +57,8 @@ fromOverlappingTimeline f (OverlappingTimeline xs) = resolveConflicts xs
     resolveConflicts (t:ts) = foldr (insert f) (Timeline [t]) ts
 
 -- | /O(n^2)/. Construct timeline from list of intervals with given payload conflicts resolver
+-- 
+-- prop> fromListWith (++) [event_0_2_a, event_1_3_b] == Timeline [Event (Interval (0,1)) "a", Event (Interval (1,2)) "ab", Event (Interval (2,3)) "b"]
 fromListWith
   :: Ord t
   => (p -> p -> p)     -- ^ payload conflicts resolver
@@ -65,18 +67,22 @@ fromListWith
 fromListWith f lst = fromOverlappingTimeline f (fromList lst)
 
 -- | /O(1)/. Construct timeline from list without preserving timeline properties.
+-- 
+-- prop> unsafeFromList [event_0_2_a, event_1_3_b] == Timeline [event_0_2_a, event_1_3_b]
 unsafeFromList :: [Event t p] -> Timeline t p
 unsafeFromList = Timeline
 
 -- | /O(1)/. Empty timeline.
 --
--- > length (toList empty) == 0
+-- >>> length (toList empty)
+-- 0
 empty :: Timeline t p
 empty = Timeline []
 
 -- | /O(1)/. Timeline with one event.
 --
--- > length (toList (singleton (Interval (0, 1), 'a'))) == 1
+-- >>> length (toList (singleton (Event (Interval (0, 1)) 'a')))
+-- 1
 singleton :: Event t p -> Timeline t p
 singleton event = Timeline [event]
 

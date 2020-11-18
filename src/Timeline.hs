@@ -278,6 +278,10 @@ take 0 _                 = []
 take _ (Timeline [])     = []
 take n (Timeline (x:xs)) = x : take (n-1) (Timeline xs)
 
+-- | Get events while they satisfy given condition.
+--
+-- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "xxx y xx") == [Event (Interval (0, 3)) 'x']
+-- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "y xx") == []
 takeWhile
   :: Ord t
   => (Event t p -> Bool)
@@ -291,6 +295,18 @@ takeWhile f (Timeline (x:xs))
 -----------------------------------------------------------------------------
 -- * Combine
 
+-- |
+-- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xxx") (mkPictoralTimeline "")
+-- "xxx"
+--
+-- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xxx") (mkPictoralTimeline "   yyy")
+-- "xxxyyy"
+-- 
+-- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xx") (mkPictoralTimeline "   yy")
+-- "xx yy"
+--
+-- >>> toString $ union (\_ y -> y) (mkPictoralTimeline " x y z") (mkPictoralTimeline "x y z")
+-- "xxyyzz"
 union
   :: Ord t
   => (p -> p -> p)

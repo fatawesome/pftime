@@ -61,18 +61,21 @@ mkMaybeInterval (from, to)
   | otherwise = Nothing
   
 -- | Subtract second argument from first. Works as set difference in terms of type argument.
-subtractInterval
+subtract
   :: Ord t
   => Interval t
   -> Interval t
   -> [Interval t]
-subtractInterval x@(Interval (x1, x2)) y
+subtract x@(Interval (x1, x2)) y
   = case intersectIntervals x y of
     Just (Interval (i1, i2)) -> catMaybes [mkMaybeInterval (x1, i1), mkMaybeInterval (i2, x2)] 
     Nothing -> [x]
     
 concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
+
+------------------------------------------------------------------------------
+-- * Properties
 
 -- |
 -- prop> adjacent (Interval (1,2)) (Interval (2,3)) == True

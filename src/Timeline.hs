@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 module Timeline where
 
-import Prelude hiding (take, takeWhile)
+import Prelude hiding (take, takeWhile, subtract)
 import Event
 
 import           Interval
@@ -257,14 +257,66 @@ insert
         , Event (Interval (yleft, yright)) (f pX pY)
         ] <> xs
       )
-      
+
   | otherwise = timeline
+
+-----------------------------------------------------------------------------
+-- * Delete/Update
+
+-- | Delete all entries for the given range from timeline.
+-- 
+-- >>> toString $ delete (Interval (0, 1)) (mkPictoralTimeline " xx")
+-- " xx"
+-- 
+-- >>> toString $ delete (Interval (2, 3)) (mkPictoralTimeline "xx")
+-- "xx"
+--
+-- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx")
+-- "xx"
+-- 
+-- >>> toString $ delete (Interval (0, 2)) (mkPictoralTimeline " xxx")
+-- "  xx"
+-- 
+-- >>> toString $ delete (Interval (1, 2)) (mkPictoralTimeline "xxx")
+-- "x x"
+--  
+-- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx yyy")
+-- "xx   yy"
+-- 
+-- >>> toString $ delete (Interval (0, 3)) (mkPictoralTimeline " x")
+-- ""
+delete
+  :: Ord t
+  => Interval t
+  -> Timeline t p
+  -> Timeline t p
+delete _ (Timeline []) = Timeline []
+delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px):xs))
+  -- Case 1:
+  --    xxx
+  -- xxx
+  | l >= rx = Timeline (x : getTimeline (delete i (Timeline xs)))
+  
+  -- Case 2:
+  -- xxx
+  --  xxx
+  | r <= rx = Timeline $ insertPayload difference px ++ xs
+  
+  -- Case 3:
+  --  xxx
+  -- xxx
+  | r > rx = Timeline (insertPayload difference px ++ getTimeline (delete (Interval (rx, r)) (Timeline xs)))
+  
+  | otherwise = timeline  
+  where
+    difference = subtract ix i 
+    insertPayload is p = map (`Event` p) is
       
 -----------------------------------------------------------------------------
 -- * Query
 
 -- | Get first `n` events from timeline.
--- 
+--
 -- prop> take 1 (mkPictoralTimeline "") == []
 -- prop> take 2 (mkPictoralTimeline "x") == [Event (Interval (0,1)) 'x']
 -- prop> take 2 (mkPictoralTimeline "xy") == getTimeline (mkPictoralTimeline "xy")
@@ -301,7 +353,7 @@ takeWhile f (Timeline (x:xs))
 --
 -- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xxx") (mkPictoralTimeline "   yyy")
 -- "xxxyyy"
--- 
+--
 -- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xx") (mkPictoralTimeline "   yy")
 -- "xx yy"
 --
@@ -383,5 +435,5 @@ subtractFromIntervalList
 subtractFromIntervalList xs i = concatMap (handleSubtractWithPayload i) xs
   where
     handleSubtractWithPayload x y = map (, snd y) (subtractIntervalFlip x (fst y))
-    subtractIntervalFlip x y = subtractInterval y x 
+    subtractIntervalFlip x y = subtract y x
 

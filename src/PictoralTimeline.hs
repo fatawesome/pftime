@@ -45,13 +45,7 @@ toString (Timeline []) = ""
 toString (Timeline xs) = result
   where
     start = replicate (fst $ getInterval $ interval (head xs)) ' '
-    (result, _) = helper (start, xs)
-
-helper :: (String, [Event Int Char]) -> (String, [Event Int Char])
-helper (string, []) = (string, [])
-helper (string, x@(Event (Interval (left, right)) char) : xs)
-  | length string < left = helper (string ++ emptiness (left - length string), x:xs)
-  | otherwise = helper (string ++ replicate (right - left) char, xs)
+    (result, _) = toStringImpl (start, xs)
 
 emptiness
   :: Int    -- ^ Length of empty space
@@ -71,3 +65,9 @@ parse :: String -> [Event Int Char]
 parse s = map Event.fromTuple (tuples s)
   where
     tuples str = filter (\el -> snd el /= ' ') (zipWith (\ i c -> (Interval (i, i + 1), c)) [0 .. ] str)
+    
+toStringImpl :: (String, [Event Int Char]) -> (String, [Event Int Char])
+toStringImpl (string, []) = (string, [])
+toStringImpl (string, x@(Event (Interval (left, right)) char) : xs)
+  | length string < left = toStringImpl (string ++ emptiness (left - length string), x:xs)
+  | otherwise = toStringImpl (string ++ replicate (right - left) char, xs)

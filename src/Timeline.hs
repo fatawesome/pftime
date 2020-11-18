@@ -264,25 +264,25 @@ insert
 -- * Delete/Update
 
 -- | Delete all entries for the given range from timeline.
--- 
+--
 -- >>> toString $ delete (Interval (0, 1)) (mkPictoralTimeline " xx")
 -- " xx"
--- 
+--
 -- >>> toString $ delete (Interval (2, 3)) (mkPictoralTimeline "xx")
 -- "xx"
 --
 -- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx")
 -- "xx"
--- 
+--
 -- >>> toString $ delete (Interval (0, 2)) (mkPictoralTimeline " xxx")
 -- "  xx"
--- 
+--
 -- >>> toString $ delete (Interval (1, 2)) (mkPictoralTimeline "xxx")
 -- "x x"
---  
+--
 -- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx yyy")
 -- "xx   yy"
--- 
+--
 -- >>> toString $ delete (Interval (0, 3)) (mkPictoralTimeline " x")
 -- ""
 delete
@@ -296,20 +296,20 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
   --    xxx
   -- xxx
   | l >= rx = Timeline (x : getTimeline (delete i (Timeline xs)))
-  
+
   -- Case 2:
   -- xxx
   --  xxx
   | r <= rx = Timeline $ insertPayload difference px ++ xs
-  
+
   -- Case 3:
   --  xxx
   -- xxx
   | r > rx = Timeline (insertPayload difference px ++ getTimeline (delete (Interval (rx, r)) (Timeline xs)))
-  
-  | otherwise = timeline  
+
+  | otherwise = timeline
   where
-    difference = subtract ix i 
+    difference = subtract ix i
     insertPayload is p = map (`Event` p) is
       
 -----------------------------------------------------------------------------
@@ -348,6 +348,7 @@ takeWhile f (Timeline (x:xs))
 -- * Combine
 
 -- |
+-- 
 -- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xxx") (mkPictoralTimeline "")
 -- "xxx"
 --

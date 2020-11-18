@@ -267,6 +267,7 @@ insert
 -- 
 -- prop> take 1 (mkPictoralTimeline "") == []
 -- prop> take 2 (mkPictoralTimeline "x") == [Event (Interval (0,1)) 'x']
+-- prop> take 2 (mkPictoralTimeline "xy") == getTimeline (mkPictoralTimeline "xy")
 -- prop> take 2 (mkPictoralTimeline "xyz") == [Event (Interval (0,1)) 'x', Event (Interval (1,2)) 'y']
 take
   :: Ord t

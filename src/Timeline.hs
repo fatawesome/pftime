@@ -20,6 +20,7 @@ import Data.Maybe (mapMaybe)
 import Data.Foldable (asum)
 
 -- $setup
+-- >>> import Prelude hiding (take, takeWhile)
 -- >>> import PictoralTimeline
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
@@ -116,7 +117,7 @@ singleton event = Timeline [event]
 -- "xyyy"
 --
 -- Case 6:
---  
+--    
 -- >>> toString $ insert (\_ y -> y) (Event (Interval (0,4)) 'y') (mkPictoralTimeline "xxx")
 -- "yyyy"
 -- 
@@ -257,9 +258,16 @@ insert
         ] <> xs
       )
       
+  | otherwise = timeline
+      
 -----------------------------------------------------------------------------
 -- * Query
 
+-- | Get first `n` events from timeline.
+-- 
+-- prop> take 1 (mkPictoralTimeline "") == []
+-- prop> take 2 (mkPictoralTimeline "x") == [Event (Interval (0,1)) 'x']
+-- prop> take 2 (mkPictoralTimeline "xyz") == [Event (Interval (0,1)) 'x', Event (Interval (1,2)) 'y']
 take
   :: Ord t
   => Int

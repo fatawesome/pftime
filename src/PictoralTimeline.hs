@@ -31,7 +31,6 @@ type PictoralTimeline = Timeline Int Char
 -- Time is relative to beginning of the string i.e. time (head str) == 0 
 mkPictoralTimeline :: String -> PictoralTimeline
 mkPictoralTimeline []  = empty
-mkPictoralTimeline [_] = empty
 mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
   where
     f el [] = [el]

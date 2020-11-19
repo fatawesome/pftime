@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------
 module Timeline where
 
-import Prelude hiding (take, takeWhile, subtract)
+import Prelude hiding (take, takeWhile, subtract, null)
 import Event
 
 import           Interval
@@ -19,7 +19,7 @@ import Data.Maybe (mapMaybe)
 import Data.Foldable (asum)
 
 -- $setup
--- >>> import Prelude hiding (take, takeWhile)
+-- >>> import Prelude hiding (take, takeWhile, subtract, null)
 -- >>> import PictoralTimeline
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
@@ -342,6 +342,24 @@ update
   -> Timeline t p
   -> Timeline t p
 update = insert (\_ x -> x)
+
+-----------------------------------------------------------------------------
+-- * Size
+
+-- | Is the timeline empty?
+--
+-- prop> null empty == True
+-- prop> null (singleton (Event (Interval (0,1)) 'a')) == False
+null :: Timeline t p -> Bool
+null t = size t == 0
+
+-- | The number of event in the timeline.
+--
+-- prop> size empty == 0
+-- prop> size (singleton (Event (Interval (0,1)) 'a')) == 1
+-- prop> size (mkPictoralTimeline "xyz") == 3
+size :: Timeline t p -> Int 
+size = length . getTimeline
       
 -----------------------------------------------------------------------------
 -- * Query

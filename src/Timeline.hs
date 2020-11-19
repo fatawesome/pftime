@@ -348,7 +348,7 @@ takeWhile f (Timeline (x:xs))
 -- * Combine
 
 -- |
--- 
+--
 -- >>> toString $ union (\_ y -> y) (mkPictoralTimeline "xxx") (mkPictoralTimeline "")
 -- "xxx"
 --
@@ -373,12 +373,23 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 -- As we know, Timeline is ascending and has no overlaps (see isValid).
 -- So, after each iteration processed interval can be dropped,
 -- thus decreasing number of operations to be performed in the next iteration.
-intersection
+
+-- | Find intersection of the first timeline with the second.
+-- 
+-- >>> toString $ (mkPictoralTimeline "xxx") `intersect` (mkPictoralTimeline " yyy")
+-- " xx"
+-- 
+-- >>> toString $ (mkPictoralTimeline "xxx") `intersect` (mkPictoralTimeline "    yyy")
+-- ""
+-- 
+-- >>> toString $ (mkPictoralTimeline "xxx yyy") `intersect` (mkPictoralTimeline "  zzz")
+-- "  x y"  
+intersect
   :: Ord t
   => Timeline t p
   -> Timeline t p
   -> Timeline t p
-intersection (Timeline xs) (Timeline ys)
+intersect (Timeline xs) (Timeline ys)
   = unsafeFromList $ mapMaybe (handleIntersectionWithPayload ys) xs
   where
     handleIntersectionWithPayload t (Event i p)

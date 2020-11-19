@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
-{-# LANGUAGE TupleSections #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -151,7 +150,7 @@ insert
   -> Event t p
   -> Timeline t p
   -> Timeline t p
-insert _ event (Timeline []) = Timeline [event]
+insert _ event (Timeline []) = singleton event
 insert 
   f 
   event@(Event (Interval (yleft, yright)) pY) 
@@ -286,7 +285,6 @@ insert
 -- >>> toString $ delete (Interval (0, 3)) (mkPictoralTimeline " x")
 -- ""
 -- 
--- [ Event (Interval (0,3)) 'x', Event (Interval (4,7)) 'y' ]
 -- >>> toString $ delete (Interval (5, 7)) (mkPictoralTimeline "xxx yyy")
 -- "xxx y"
 delete
@@ -315,6 +313,35 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
   where
     diff = subtract ix i
     insertPayload is p = map (`Event` p) is
+    
+
+-- | Update timeline with event.
+-- If given event intersects with those already in timeline, replaces them.
+-- If not, simply inserts new event.
+-- 
+-- Basically, /update/ is /insert (\_, x -> x)/.
+-- 
+-- >>> let event = Event (Interval (0, 1)) 'x'
+-- >>> toString $ update event (mkPictoralTimeline "")
+-- "x"
+--
+-- >>> let event = Event (Interval (1, 2)) 'y'
+-- >>> toString $ update event (mkPictoralTimeline "xxx")
+-- "xyx"
+--
+-- >>> let event = Event (Interval (3, 4)) 'y'
+-- >>> toString $ update event (mkPictoralTimeline "xxx")
+-- "xxxy"
+--
+-- >>> let event = Event (Interval (2, 4)) 'y'
+-- >>> toString $ update event (mkPictoralTimeline "xxx")
+-- "xxyy"
+update
+  :: Ord t
+  => Event t p
+  -> Timeline t p
+  -> Timeline t p
+update = insert (\_ x -> x)
       
 -----------------------------------------------------------------------------
 -- * Query
@@ -451,16 +478,3 @@ findIntersection
   -> [Interval t]       -- ^ interval to find intersection with.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
 findIntersection i xs = asum (map (intersectIntervals i) xs)
-
--- haveConflicts
-
-subtractFromIntervalList
-  :: Ord t
-  => [(Interval t, e)] -- ^ List of intervals from which to subtract TODO: get rid of payloads here
-  -> Interval t        -- ^ Interval to subtract.
-  -> [(Interval t, e)] -- ^ Resulting list of intervals.
-subtractFromIntervalList xs i = concatMap (handleSubtractWithPayload i) xs
-  where
-    handleSubtractWithPayload x y = map (, snd y) (subtractIntervalFlip x (fst y))
-    subtractIntervalFlip x y = subtract y x
-

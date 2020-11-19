@@ -1,7 +1,9 @@
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 -----------------------------------------------------------------------------
--- | 
+-- |
 -- Module : PictoralTimeline
--- 
+--
 -- = Description
 -- Pictoral representation of Timeline structure.
 -- For example, timeline "XXX YYY ZZZ"
@@ -9,26 +11,29 @@
 -- Timeline [Event (Interval (0,3)) 'X'}, Event (Interval (4,7)) 'Y'}, Event (Interval (8,11)) 'Z'}]
 -----------------------------------------------------------------------------
 
-module PictoralTimeline (
-  PictoralTimeline,
-  mkPictoralTimeline,
-  toString
-) where
+module PictoralTimeline where
 
-import Timeline
-import Interval
-import Event
+import           Data.String (IsString (..))
+import           Event
+import           Interval
+import           Timeline
 
 -----------------------------------------------------------------------------
 -- * Pictoral timeline type
 
 type PictoralTimeline = Timeline Int Char
 
+instance IsString PictoralTimeline where
+  fromString = mkPictoralTimeline
+
+instance {-# OVERLAPPING #-} Show PictoralTimeline where
+  show = toString
+
 -----------------------------------------------------------------------------
 -- * Construction
 
 -- | Create PictoralTimeline from string.
--- Time is relative to beginning of the string i.e. time (head str) == 0 
+-- Time is relative to beginning of the string i.e. time (head str) == 0
 mkPictoralTimeline :: String -> PictoralTimeline
 mkPictoralTimeline []  = empty
 mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
@@ -65,7 +70,7 @@ parse :: String -> [Event Int Char]
 parse s = map Event.fromTuple (tuples s)
   where
     tuples str = filter (\el -> snd el /= ' ') (zipWith (\ i c -> (Interval (i, i + 1), c)) [0 .. ] str)
-    
+
 toStringImpl :: (String, [Event Int Char]) -> (String, [Event Int Char])
 toStringImpl (string, []) = (string, [])
 toStringImpl (string, x@(Event (Interval (left, right)) char) : xs)

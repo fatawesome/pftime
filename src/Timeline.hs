@@ -285,6 +285,10 @@ insert
 --
 -- >>> toString $ delete (Interval (0, 3)) (mkPictoralTimeline " x")
 -- ""
+-- 
+-- [ Event (Interval (0,3)) 'x', Event (Interval (4,7)) 'y' ]
+-- >>> toString $ delete (Interval (5, 7)) (mkPictoralTimeline "xxx yyy")
+-- "xxx y"
 delete
   :: Ord t
   => Interval t
@@ -295,21 +299,21 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
   -- Case 1:
   --    xxx
   -- xxx
-  | l >= rx = Timeline (x : getTimeline (delete i (Timeline xs)))
+  | l >= rx = Timeline (x : toList (delete i (Timeline xs)))
 
   -- Case 2:
   -- xxx
   --  xxx
-  | r <= rx = Timeline $ insertPayload difference px ++ xs
+  | r <= rx = Timeline $ insertPayload diff px ++ xs
 
   -- Case 3:
   --  xxx
   -- xxx
-  | r > rx = Timeline (insertPayload difference px ++ getTimeline (delete (Interval (rx, r)) (Timeline xs)))
+  | r > rx = Timeline (insertPayload diff px ++ toList (delete (Interval (rx, r)) (Timeline xs)))
 
   | otherwise = timeline
   where
-    difference = subtract ix i
+    diff = subtract ix i
     insertPayload is p = map (`Event` p) is
       
 -----------------------------------------------------------------------------
@@ -403,16 +407,27 @@ intersect (Timeline xs) (Timeline ys)
 -- Timeline is ascending and non-overlapping (see isValid).
 -- When x_2 (end of interval) is less than y_1 (beginning of the next interval to compare with)
 -- all subsequent operations for current interval can be canceled.
---difference
---  :: Ord t
---  => Timeline t e
---  -> Timeline t e
---  -> Timeline t e
---difference (Timeline []) _ = Timeline []
---difference x (Timeline []) = x
---difference (Timeline xs) (Timeline excludes)
---  = unsafeFromList $ 
-  -- [a] -> (a -> [a]) ->
+
+-- | Find difference of firs timeline from second.
+--
+-- >>> toString $ (mkPictoralTimeline "xxx") `difference` (mkPictoralTimeline "yyy")
+-- ""
+-- 
+-- >>> toString $ (mkPictoralTimeline "xxx") `difference` (mkPictoralTimeline "   yyy")
+-- "xxx"
+-- 
+-- >>> toString $ (mkPictoralTimeline "xxx") `difference` (mkPictoralTimeline "  yyy")
+-- "xx"
+-- 
+-- >>> toString $ (mkPictoralTimeline "xxx yyy") `difference` (mkPictoralTimeline "xx   yy")
+-- "  x y" 
+difference 
+  :: Ord t
+  => Timeline t p
+  -> Timeline t p
+  -> Timeline t p
+difference x (Timeline []) = x
+difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys  
 
 -----------------------------------------------------------------------------
 -- * Conversion

@@ -9,11 +9,13 @@
 
 module Interval where
 
+import Prelude hiding (subtract)
 import Data.Maybe (catMaybes)
 
 -- $setup
 --
 -- >>> import Test.QuickCheck
+-- >>> import Prelude hiding (subtract)
 -- >>> instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where arbitrary = mkInterval <$> arbitrary
 
 -----------------------------------------------------------------------------
@@ -41,16 +43,24 @@ mkInterval (from, to)
 -- * Combine 
 
 -- | Intersect two intervals if it is possible.
+--
+-- prop> intersectIntervals (Interval (4,7)) (Interval (5,7)) == Just (Interval (5,7))
+-- prop> intersectIntervals (Interval (0,1)) (Interval (2,3)) == Nothing
+-- prop> intersectIntervals (Interval (0,1)) (Interval (1,2)) == Nothing
+-- prop> intersectIntervals (Interval (0,2)) (Interval (1,3)) == Just (Interval (1,2))
+-- prop> intersectIntervals (Interval (0,2)) (Interval (0,5)) == Just (Interval (0,2))
+-- prop> intersectIntervals (Interval (0,5)) (Interval (0,2)) == Just (Interval (0,2))
 intersectIntervals
   :: Ord t 
   => Interval t
   -> Interval t
   -> Maybe (Interval t)
 intersectIntervals x@(Interval (x1, x2)) y@(Interval (y1, y2))
+  | x1 >= y2 || x2 <= y1 = Nothing
   | x1 >= y1 && x2 <= y2 = Just x
   | x1 < y1 && x2 > y2 = Just y
   | x1 >= y1 && x2 > y2 && x1 < y2 = Just (mkInterval (x1, y2))
-  | x1 <= y1 && x2 < y2 && x2 > y1 = Just (mkInterval (y1, x2))
+  | x1 <= y1 && x2 <= y2 && x2 > y1 = Just (mkInterval (y1, x2))
   | otherwise = Nothing
   
 
@@ -61,6 +71,8 @@ mkMaybeInterval (from, to)
   | otherwise = Nothing
   
 -- | Subtract second argument from first. Works as set difference in terms of type argument.
+--
+-- prop> subtract (Interval (4,7)) (Interval (5,7)) == [Interval (4,5)] 
 subtract
   :: Ord t
   => Interval t

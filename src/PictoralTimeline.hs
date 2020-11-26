@@ -16,7 +16,7 @@ module PictoralTimeline where
 import           Data.String (IsString (..))
 import           Event
 import           Interval
-import           Timeline
+import           Timeline hiding (filter)
 
 -----------------------------------------------------------------------------
 -- * Pictoral timeline type

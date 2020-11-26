@@ -11,7 +11,8 @@
 module Timeline where
 
 import           Event
-import           Prelude             hiding (null, subtract, take, takeWhile)
+import           Prelude             hiding (null, subtract, take, takeWhile, filter, drop, dropWhile)
+import qualified Prelude (drop)
 
 import           Data.Foldable       (asum)
 import           Data.Maybe          (mapMaybe)
@@ -19,7 +20,9 @@ import           Interval
 import           OverlappingTimeline
 
 -- $setup
--- >>> import Prelude hiding (take, takeWhile, subtract, null)
+-- >>> :set -XOverloadedStrings
+-- >>> import Prelude hiding (take, takeWhile, subtract, null, filter, drop, dropWhile)
+-- >>> import qualified Prelude (drop)
 -- >>> import PictoralTimeline
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
@@ -59,7 +62,7 @@ fromOverlappingTimeline f (OverlappingTimeline xs) = resolveConflicts xs
     resolveConflicts []     = empty
     resolveConflicts (t:ts) = foldr (insert f) (Timeline [t]) ts
 
--- | /O(n^2)/. Construct timeline from list of intervals with given payload conflicts resolver
+-- | \( O(n^2) \). Construct timeline from list of intervals with given payload conflicts resolver
 --
 -- prop> fromListWith (++) [event_0_2_a, event_1_3_b] == Timeline [Event (Interval (0,1)) "a", Event (Interval (1,2)) "ab", Event (Interval (2,3)) "b"]
 fromListWith
@@ -69,20 +72,20 @@ fromListWith
   -> Timeline t p      -- ^ new Timeline
 fromListWith f lst = fromOverlappingTimeline f (fromList lst)
 
--- | /O(1)/. Construct timeline from list without preserving timeline properties.
+-- | \( O(1) \). Construct timeline from list without preserving timeline properties.
 --
 -- prop> unsafeFromList [event_0_2_a, event_1_3_b] == Timeline [event_0_2_a, event_1_3_b]
 unsafeFromList :: [Event t p] -> Timeline t p
 unsafeFromList = Timeline
 
--- | /O(1)/. Empty timeline.
+-- | \( O(1) \). Empty timeline.
 --
 -- >>> length (toList empty)
 -- 0
 empty :: Timeline t p
 empty = Timeline []
 
--- | /O(1)/. Timeline with one event.
+-- | \( O(1) \). Timeline with one event.
 --
 -- >>> length (toList (singleton (Event (Interval (0, 1)) 'a')))
 -- 1
@@ -93,7 +96,7 @@ singleton event = Timeline [event]
 -- * Insertion
 
 -- TODO: refactor in terms of `intersectIntervals` from Interval.hs
--- | Safely insert an element into the Timeline
+-- | \( O(n) \). Safely insert an element into the Timeline
 --
 -- Case 1:
 --
@@ -267,7 +270,7 @@ insert
 -----------------------------------------------------------------------------
 -- * Delete/Update
 
--- | Delete all entries for the given range from timeline.
+-- | \( O(n) \). Delete all entries for the given range from timeline.
 --
 -- >>> toString $ delete (Interval (0, 1)) (mkPictoralTimeline " xx")
 -- " xx"
@@ -369,34 +372,189 @@ size = length . getTimeline
 -----------------------------------------------------------------------------
 -- * Query
 
--- | Get first `n` events from timeline.
+-- | \( O(n) \). Get first `n` events from timeline.
 --
--- prop> take 1 (mkPictoralTimeline "") == []
--- prop> take 2 (mkPictoralTimeline "x") == [Event (Interval (0,1)) 'x']
--- prop> take 2 (mkPictoralTimeline "xy") == getTimeline (mkPictoralTimeline "xy")
--- prop> take 2 (mkPictoralTimeline "xyz") == [Event (Interval (0,1)) 'x', Event (Interval (1,2)) 'y']
+-- prop> take 1 (mkPictoralTimeline "") == empty
+-- prop> take 2 (mkPictoralTimeline "x") == singleton (Event (Interval (0,1)) 'x')
+-- prop> take 2 (mkPictoralTimeline "xy") == mkPictoralTimeline "xy"
+-- prop> take 2 (mkPictoralTimeline "xyz") == mkPictoralTimeline "xy"
 take
   :: Ord t
   => Int
   -> Timeline t p
-  -> [Event t p]
-take 0 _                 = []
-take _ (Timeline [])     = []
-take n (Timeline (x:xs)) = x : take (n-1) (Timeline xs)
+  -> Timeline t p
+take 0 _                 = empty
+take _ (Timeline [])     = empty
+take n (Timeline (x:xs)) = Timeline (x : getTimeline (take (n-1) (Timeline xs)))
 
--- | Get events while they satisfy given condition.
+-- | \( O(n) \). Get events while they satisfy given condition.
 --
--- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "xxx y xx") == [Event (Interval (0, 3)) 'x']
--- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "y xx") == []
+-- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "xxx y xx") == mkPictoralTimeline "xxx"
+-- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "y xx") == empty
 takeWhile
   :: Ord t
   => (Event t p -> Bool)
   -> Timeline t p
-  -> [Event t p]
-takeWhile _ (Timeline []) = []
+  -> Timeline t p
+takeWhile _ (Timeline []) = empty
 takeWhile f (Timeline (x:xs))
-  | f x = x : takeWhile f (Timeline xs)
-  | otherwise = []
+  | f x = Timeline (x : getTimeline (takeWhile f (Timeline xs)))
+  | otherwise = empty
+
+--flatMap
+--  :: (Event t a -> Timeline t b)
+--  -> Timeline t a
+--  -> Timeline t b
+--flatMap f timeline = _
+
+-- | \( O(n) \). Filter all events that satisfy the predicate.
+--
+-- >>> let t = "x y x z" :: PictoralTimeline
+-- >>> filter (\x -> payload x == 'x') t
+-- x   x
+filter
+  :: Ord t
+  => (Event t p -> Bool)
+  -> Timeline t p
+  -> Timeline t p
+filter _ (Timeline []) = empty
+filter f (Timeline (x:xs))
+  | f x = Timeline (x : getTimeline xs')
+  | otherwise = xs'
+  where xs' = filter f (Timeline xs)
+
+-- | \( O(n) \). Cut out a window from the timeline.
+--
+-- >>> let t = "xxxxxx" :: PictoralTimeline
+-- >>> window (Interval (0, 1)) t
+-- x
+--
+-- >>> let t = "xxxxxx" :: PictoralTimeline
+-- >>> window (Interval (1, 3)) t
+--  xx
+--
+-- >>> let t = " xx" :: PictoralTimeline
+-- >>> window (Interval (0, 2)) t
+--  x
+--
+-- >>> let t = " xx" :: PictoralTimeline
+-- >>> window (Interval (0, 2)) t
+--  x
+--
+-- >>> let t = "xxx xxx" :: PictoralTimeline
+-- >>> window (Interval (2, 4)) t
+--   x
+--
+-- >>> let t = "xxx xxx" :: PictoralTimeline
+-- >>> window (Interval (2, 5)) t
+--   x x
+--
+-- >>> let t = "xx xx xx" :: PictoralTimeline
+-- >>> window (Interval (1, 7)) t
+--  x xx x
+window
+  :: Ord t
+  => Interval t
+  -> Timeline t p
+  -> Timeline t p
+window _ (Timeline []) = empty
+window i@(Interval (l, r)) (Timeline ((Event (Interval (lx, rx)) px) : xs))
+  -- Case 1:
+  --    iii
+  -- xxx
+  | l >= rx = window i (Timeline xs)
+
+  -- Case 2:
+  -- iii
+  --  xxx
+  | r <= rx = singleton (Event (Interval (max l lx, r)) px)
+
+  -- Case 3:
+  --  iii
+  -- xxx
+  | r > rx
+    = Timeline (Event (Interval (max l lx, rx)) px : getTimeline (window (Interval (rx, r)) (Timeline xs)))
+
+  | otherwise = empty
+
+-- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
+--
+-- >>> let t = "xxx" :: PictoralTimeline
+-- >>> drop 0 t
+-- xxx
+--
+-- >>> let t = "xxx yyy" :: PictoralTimeline
+-- >>> drop 3 t == empty
+-- True
+--
+-- >>> let t = "xxx yyy" :: PictoralTimeline
+-- >>> drop 2 t == empty
+-- True
+--
+-- >>> let t = "xxx yyy zzz" :: PictoralTimeline
+-- >>> drop 1 t
+--     yyy zzz
+drop
+  :: Ord t
+  => Int
+  -> Timeline t p
+  -> Timeline t p
+drop _ (Timeline []) = empty
+drop n timeline@(Timeline (_:xs))
+  | n > 0     = drop (n-1) (Timeline xs)
+  | otherwise = timeline
+
+
+-- | Return suffix after dropping events which satisfy the predicate.
+--
+-- >>> let t = "yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+-- yyy
+--
+-- >>> let t = "x yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+--   yyy
+--
+-- >>> let t = "x x yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+--     yyy
+--
+-- >>> let t = "z xxx yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+-- z xxx yyy
+dropWhile
+  :: Ord t
+  => (Event t p -> Bool)
+  -> Timeline t p
+  -> Timeline t p
+dropWhile _ (Timeline []) = empty
+dropWhile f t@(Timeline (x:xs))
+  | f x = Timeline (getTimeline (dropWhile f (Timeline xs)))
+  | otherwise = t
+
+-- | Drop everything until given point in time.
+--
+-- >>> let t = "xxx xxx xxx" :: PictoralTimeline
+-- >>> dropBefore 4 t
+--     xxx xxx
+--
+-- >>> let t = "xxx" :: PictoralTimeline
+-- >>> dropBefore 1 t
+--  xx
+-- 
+-- >>> let t = "  xxx" :: PictoralTimeline
+-- >>> dropBefore 1 t
+--   xxx  
+dropBefore
+  :: Ord t
+  => t
+  -> Timeline t p
+  -> Timeline t p
+dropBefore _ (Timeline []) = empty
+dropBefore t timeline@(Timeline (Event (Interval (l, r)) p : xs))
+  | t <= l = timeline
+  | t >= r = dropBefore t (Timeline xs)
+  | otherwise = Timeline (Event (Interval (t, r)) p : xs )
 
 -----------------------------------------------------------------------------
 -- * Combine
@@ -422,6 +580,16 @@ union
   -> Timeline t p
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
+--unionBy
+--  :: Ord t
+--  => (p -> p -> p)
+--  -> Timeline t p
+--  -> Timeline t p
+--  -> Timeline t p
+--unionBy _ t (Timeline []) = t
+--unionBy _ (Timeline []) t = t
+--unionBy f t1@(Timeline x:xs) t2@(Timeline y:ys) = _
+
 
 -- TODO: optimization
 -- As we know, Timeline is ascending and has no overlaps (see isValid).
@@ -430,13 +598,13 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 -- | Find intersection of the first timeline with the second.
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `intersect` (mkPictoralTimeline " yyy")
+-- >>> toString $ (mkPictoralTimeline "xxx") `Timeline.intersect` (mkPictoralTimeline " yyy")
 -- " xx"
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `intersect` (mkPictoralTimeline "    yyy")
+-- >>> toString $ (mkPictoralTimeline "xxx") `Timeline.intersect` (mkPictoralTimeline "    yyy")
 -- ""
 --
--- >>> toString $ (mkPictoralTimeline "xxx yyy") `intersect` (mkPictoralTimeline "  zzz")
+-- >>> toString $ (mkPictoralTimeline "xxx yyy") `Timeline.intersect` (mkPictoralTimeline "  zzz")
 -- "  x y"
 intersect
   :: Ord t
@@ -450,7 +618,7 @@ intersect (Timeline xs) (Timeline ys)
       = case findIntersectionFlip (map interval t) i of
         Just x  -> Just $ Event x p
         Nothing -> Nothing
-    findIntersectionFlip x y = findIntersection y x
+    findIntersectionFlip x y = findIntersection y x 
 
 -- TODO: optimization
 -- Number of iterations for one interval can be reduced given the fact that
@@ -487,7 +655,7 @@ toList :: Timeline t p -> [Event t p]
 toList = getTimeline
 
 isAscending :: Ord a => [a] -> Bool
-isAscending xs = and (zipWith (<) xs (drop 1 xs))
+isAscending xs = and (zipWith (<) xs (Prelude.drop 1 xs))
 
 isValid :: Ord t => Timeline t p -> Bool
 isValid = isAscending . map interval . toList
@@ -497,7 +665,7 @@ isValid = isAscending . map interval . toList
 
 findIntersection
   :: Ord t
-  => Interval t         -- ^ timeline in which to search.
-  -> [Interval t]       -- ^ interval to find intersection with.
+  => Interval t         -- ^ interval to find intersection with.
+  -> [Interval t]       -- ^ intervals in which to search.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
-findIntersection i xs = asum (map (intersectIntervals i) xs)
+findIntersection i xs = asum (map (Interval.intersect i) xs)

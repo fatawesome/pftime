@@ -9,7 +9,7 @@
 
 module Interval where
 
-import Prelude hiding (subtract)
+import Prelude hiding (subtract, length)
 import Data.Maybe (catMaybes)
 
 -- $setup
@@ -44,18 +44,18 @@ mkInterval (from, to)
 
 -- | Intersect two intervals if it is possible.
 --
--- prop> intersectIntervals (Interval (4,7)) (Interval (5,7)) == Just (Interval (5,7))
--- prop> intersectIntervals (Interval (0,1)) (Interval (2,3)) == Nothing
--- prop> intersectIntervals (Interval (0,1)) (Interval (1,2)) == Nothing
--- prop> intersectIntervals (Interval (0,2)) (Interval (1,3)) == Just (Interval (1,2))
--- prop> intersectIntervals (Interval (0,2)) (Interval (0,5)) == Just (Interval (0,2))
--- prop> intersectIntervals (Interval (0,5)) (Interval (0,2)) == Just (Interval (0,2))
-intersectIntervals
+-- prop> intersect (Interval (4,7)) (Interval (5,7)) == Just (Interval (5,7))
+-- prop> intersect (Interval (0,1)) (Interval (2,3)) == Nothing
+-- prop> intersect (Interval (0,1)) (Interval (1,2)) == Nothing
+-- prop> intersect (Interval (0,2)) (Interval (1,3)) == Just (Interval (1,2))
+-- prop> intersect (Interval (0,2)) (Interval (0,5)) == Just (Interval (0,2))
+-- prop> intersect (Interval (0,5)) (Interval (0,2)) == Just (Interval (0,2))
+intersect
   :: Ord t 
   => Interval t
   -> Interval t
   -> Maybe (Interval t)
-intersectIntervals x@(Interval (x1, x2)) y@(Interval (y1, y2))
+intersect x@(Interval (x1, x2)) y@(Interval (y1, y2))
   | x1 >= y2 || x2 <= y1 = Nothing
   | x1 >= y1 && x2 <= y2 = Just x
   | x1 < y1 && x2 > y2 = Just y
@@ -79,7 +79,7 @@ subtract
   -> Interval t
   -> [Interval t]
 subtract x@(Interval (x1, x2)) y
-  = case intersectIntervals x y of
+  = case intersect x y of
     Just (Interval (i1, i2)) -> catMaybes [mkMaybeInterval (x1, i1), mkMaybeInterval (i2, x2)] 
     Nothing -> [x]
     

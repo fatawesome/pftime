@@ -1,5 +1,15 @@
+# haskell stuff
 .stack-work/
+
+# wtf
 *~
+
+# IDEA stuff
 .idea
+*.iml
+
+# haskel; (?)
 dist-newstyle
+
+# MacOS system stuff
 .DS_Store

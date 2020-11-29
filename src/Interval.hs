@@ -79,7 +79,7 @@ subtract
   -> Interval t
   -> [Interval t]
 subtract x@(Interval (x1, x2)) y
-  = case intersect x y of
+  = case x `intersect` y of
     Just (Interval (i1, i2)) -> catMaybes [mkMaybeInterval (x1, i1), mkMaybeInterval (i2, x2)] 
     Nothing -> [x]
     

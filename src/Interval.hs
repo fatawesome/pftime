@@ -16,13 +16,11 @@ import Data.Maybe (catMaybes)
 --
 -- >>> import Test.QuickCheck
 -- >>> import Prelude hiding (subtract)
--- >>> instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where arbitrary = mkInterval <$> arbitrary
 
 -----------------------------------------------------------------------------
 -- * Interval type
 
 -- | Temporal interval is a pair of points which represent bounded time period. 
--- > fst (getInterval i) < snd (getInterval i)
 newtype Interval t = Interval {
   getInterval :: (t, t) -- ^ A pair of points in time.
 } deriving (Eq, Ord, Show)
@@ -32,10 +30,10 @@ newtype Interval t = Interval {
 
 -- | /O(1)/. If /from/ > /to/, switch them.
 --
--- prop> mkInterval (0, 1) == Interval (0, 1)
--- prop> mkInterval (1, 0) == Interval (0, 1)
-mkInterval :: Ord t => (t, t) -> Interval t
-mkInterval (from, to)
+-- prop> mkInterval 0 1 == Interval (0, 1)
+-- prop> mkInterval 1 0 == Interval (0, 1)
+mkInterval :: Ord t => t -> t -> Interval t
+mkInterval from to
   | from <= to = Interval (from, to)
   | otherwise  = Interval (to, from)
 
@@ -59,8 +57,8 @@ intersect x@(Interval (x1, x2)) y@(Interval (y1, y2))
   | x1 >= y2 || x2 <= y1 = Nothing
   | x1 >= y1 && x2 <= y2 = Just x
   | x1 < y1 && x2 > y2 = Just y
-  | x1 >= y1 && x2 > y2 && x1 < y2 = Just (mkInterval (x1, y2))
-  | x1 <= y1 && x2 <= y2 && x2 > y1 = Just (mkInterval (y1, x2))
+  | x1 >= y1 && x2 > y2 && x1 < y2 = Just (mkInterval x1 y2)
+  | x1 <= y1 && x2 <= y2 && x2 > y1 = Just (mkInterval y1 x2)
   | otherwise = Nothing
   
 

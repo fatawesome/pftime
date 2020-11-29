@@ -93,7 +93,6 @@ singleton event = Timeline [event]
 -----------------------------------------------------------------------------
 -- * Insertion
 
--- TODO: refactor in terms of `intersectIntervals` from Interval.hs
 -- | \( O(n) \). Safely insert an element into the Timeline
 --
 -- Case 1:
@@ -579,36 +578,57 @@ union
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
+-- 
+-- >>> unionBy (\a b -> b) "xxx" "" :: PictoralTimeline
+-- xxx
 --
--- >>> let t1 = "xxx"     :: PictoralTimeline
--- >>> let t2 = "    yyy" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> unionBy (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
 -- xxxyyy
 --
--- >>> let t1 = "xxx" :: PictoralTimeline
--- >>> let t2 = "yyy" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> unionBy (\a b -> b) "xxx" "yyy" :: PictoralTimeline
 -- yyy
 --
--- >>> let t1 = "xxx" :: PictoralTimeline
--- >>> let t2 = " yyy" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> unionBy (\a b -> b) "xxx" " yyy" :: PictoralTimeline
 -- xyyy
 --
--- >>> let t1 = " xxx" :: PictoralTimeline
--- >>> let t2 = "yyy" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> unionBy (\a b -> b) " xxx" "yyy" :: PictoralTimeline
 -- yyyx
---unionBy
---  :: Ord t
---  => (p -> p -> p)
---  -> Timeline t p
---  -> Timeline t p
---  -> Timeline t p
---unionBy _ t (Timeline []) = t
---unionBy _ (Timeline []) t = t
---unionBy f t1@(Timeline x:xs) t2@(Timeline y:ys)
---  | 
+-- 
+-- >>> unionBy (\a b -> b) "xx" "   yy" :: PictoralTimeline
+-- xx yy
+-- 
+-- >>> unionBy (\a b -> b) " x y z" "x y z" :: PictoralTimeline
+-- xxyyzz
+--
+-- >>> unionBy (\a b -> b) "xxx yyy zz" " xxxx  a  bb" :: PictoralTimeline
+-- xxxxyyyazzbb
+unionBy
+  :: Ord t
+  => (p -> p -> p)
+  -> Timeline t p
+  -> Timeline t p
+  -> Timeline t p
+unionBy f x y = unionBy' f x y empty   
+    
+unionBy'
+  :: Ord t
+  => (p -> p -> p)
+  -> Timeline t p  -- ^ timeline 1
+  -> Timeline t p  -- ^ timeline 2
+  -> Timeline t p  -- ^ accumulator timeline
+  -> Timeline t p  -- ^ result
+unionBy' _ (Timeline [])     (Timeline [])     (Timeline []) = empty
+unionBy' _ (Timeline [])     (Timeline [])     acc           = acc 
+unionBy' f (Timeline (x:xs)) (Timeline [])     acc           = unionBy' f (Timeline xs) empty (insert f x acc)
+unionBy' f (Timeline [])     (Timeline (y:ys)) acc           = unionBy' f empty (Timeline ys) (insert f y acc)
+unionBy' 
+  f 
+  t1@(Timeline (x@(Event (Interval (xi1, xi2)) _) : xs)) 
+  t2@(Timeline (y@(Event (Interval (yi1, yi2)) _) : ys)) 
+  acc
+  | xi2 <= yi1 = unionBy' f (Timeline xs) t2 (insert f x acc)
+  | xi1 >= yi2 = unionBy' f t1 (Timeline ys) (insert f y acc)
+  | otherwise = unionBy' f (Timeline xs) (Timeline ys) (Timeline $ getTimeline acc ++ mergeWith f x y)   
 
 
 -- TODO: optimization

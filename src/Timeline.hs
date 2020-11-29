@@ -11,8 +11,8 @@
 module Timeline where
 
 import           Event
-import           Prelude             hiding (null, subtract, take, takeWhile, filter, drop, dropWhile)
-import qualified Prelude (drop)
+import           Prelude             hiding (null, subtract, take, takeWhile, filter, drop, dropWhile, reverse)
+import qualified Prelude (drop, reverse)
 
 import           Data.Foldable       (asum)
 import           Data.Maybe          (mapMaybe)
@@ -578,7 +578,7 @@ union
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
--- 
+--
 -- >>> unionBy (\a b -> b) "xxx" "" :: PictoralTimeline
 -- xxx
 --
@@ -593,44 +593,67 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 --
 -- >>> unionBy (\a b -> b) " xxx" "yyy" :: PictoralTimeline
 -- yyyx
--- 
+--
 -- >>> unionBy (\a b -> b) "xx" "   yy" :: PictoralTimeline
 -- xx yy
--- 
+--
 -- >>> unionBy (\a b -> b) " x y z" "x y z" :: PictoralTimeline
 -- xxyyzz
+-- 
+-- >>> unionBy (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
+-- xaxbx
 --
--- >>> unionBy (\a b -> b) "xxx yyy zz" " xxxx  a  bb" :: PictoralTimeline
--- xxxxyyyazzbb
+-- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
+-- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xxaaaybbbzccc
 unionBy
   :: Ord t
   => (p -> p -> p)
   -> Timeline t p
   -> Timeline t p
   -> Timeline t p
-unionBy f x y = unionBy' f x y empty   
-    
-unionBy'
+unionBy f x y = _unionBy f x y empty      
+
+-- @'unionBy' helper function.
+-- Uses reversed accumulator timeline to allow \( O(1) \) access to the last accumulated element.
+-- This way it is possible to achieve \( O(n+m) \) total @'unionBy' complexity.
+_unionBy
   :: Ord t
   => (p -> p -> p)
   -> Timeline t p  -- ^ timeline 1
   -> Timeline t p  -- ^ timeline 2
-  -> Timeline t p  -- ^ accumulator timeline
+  -> Timeline t p  -- ^ reversed accumulated timeline
   -> Timeline t p  -- ^ result
-unionBy' _ (Timeline [])     (Timeline [])     (Timeline []) = empty
-unionBy' _ (Timeline [])     (Timeline [])     acc           = acc 
-unionBy' f (Timeline (x:xs)) (Timeline [])     acc           = unionBy' f (Timeline xs) empty (insert f x acc)
-unionBy' f (Timeline [])     (Timeline (y:ys)) acc           = unionBy' f empty (Timeline ys) (insert f y acc)
-unionBy' 
-  f 
-  t1@(Timeline (x@(Event (Interval (xi1, xi2)) _) : xs)) 
-  t2@(Timeline (y@(Event (Interval (yi1, yi2)) _) : ys)) 
-  acc
-  | xi2 <= yi1 = unionBy' f (Timeline xs) t2 (insert f x acc)
-  | xi1 >= yi2 = unionBy' f t1 (Timeline ys) (insert f y acc)
-  | otherwise = unionBy' f (Timeline xs) (Timeline ys) (Timeline $ getTimeline acc ++ mergeWith f x y)   
+_unionBy _ (Timeline []) (Timeline []) (Timeline []) = empty
+_unionBy _ (Timeline []) (Timeline []) acc           = reverse acc
 
+_unionBy _ x (Timeline []) (Timeline []) = x
+_unionBy _ (Timeline []) y (Timeline []) = y
+ 
+_unionBy f (Timeline (x:xs)) (Timeline []) acc 
+  = _unionBy f (Timeline xs) empty (_reversedInsert (flip f) x acc)
+  
+_unionBy f (Timeline []) (Timeline (y:ys)) acc 
+  = _unionBy f empty (Timeline ys) (_reversedInsert f y acc)
+  
+_unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) (Timeline [])
+  | xi <= yi  = _unionBy f (Timeline xs) t2            (singleton x)
+  | otherwise = _unionBy f t1            (Timeline ys) (singleton y)
+  
+_unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) acc
+  | xi < yi = _unionBy f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
+  | otherwise = _unionBy f t1 (Timeline ys) (_reversedInsert f y acc)
 
+_reversedInsert 
+  :: Ord t
+  => (p -> p -> p)
+  -> Event t p
+  -> Timeline t p
+  -> Timeline t p 
+_reversedInsert _    el (Timeline [])     = singleton el
+_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (mergeWith func z el) ++ zs 
+ 
 -- TODO: optimization
 -- As we know, Timeline is ascending and has no overlaps (see isValid).
 -- So, after each iteration processed interval can be dropped,
@@ -686,6 +709,13 @@ difference
   -> Timeline t p
 difference x (Timeline []) = x
 difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
+
+-----------------------------------------------------------------------------
+-- * Transformations
+
+-- | Reverse the timeline.
+reverse :: Timeline t p -> Timeline t p
+reverse (Timeline xs) = Timeline (Prelude.reverse xs) 
 
 -----------------------------------------------------------------------------
 -- * Conversion

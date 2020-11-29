@@ -56,7 +56,7 @@ mergeWith f x@(Event (Interval (x1, x2)) xp) y@(Event (Interval (y1, y2)) yp)
   -- xxxx
   --  yyy
   | x1 < y1 && x2 == y2 = [ Event (mkInterval x1 y1) xp
-                          , Event (mkInterval y1 x2) (f xp xp)
+                          , Event (mkInterval y1 x2) (f xp yp)
                           ]
     
   -- xxxxx

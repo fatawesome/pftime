@@ -57,10 +57,8 @@ fromOverlappingTimeline
   => (p -> p -> p)           -- ^ payload conflicts resolver
   -> OverlappingTimeline t p -- ^ input timeline with conflicts
   -> Timeline t p            -- ^ timeline without conflicts
-fromOverlappingTimeline f (OverlappingTimeline xs) = resolveConflicts xs
-  where
-    resolveConflicts []     = empty
-    resolveConflicts (t:ts) = foldr (insert f) (Timeline [t]) ts
+fromOverlappingTimeline _ (OverlappingTimeline []) = empty
+fromOverlappingTimeline f (OverlappingTimeline (x:xs)) = foldr (insert f) (Timeline [x]) xs
 
 -- | \( O(n^2) \). Construct timeline from list of intervals with given payload conflicts resolver
 --
@@ -580,6 +578,27 @@ union
   -> Timeline t p
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
+-- | \( O(n+m) \). Returns timeline union of two timelines. For example,
+--
+-- >>> let t1 = "xxx"     :: PictoralTimeline
+-- >>> let t2 = "    yyy" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xxxyyy
+--
+-- >>> let t1 = "xxx" :: PictoralTimeline
+-- >>> let t2 = "yyy" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- yyy
+--
+-- >>> let t1 = "xxx" :: PictoralTimeline
+-- >>> let t2 = " yyy" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xyyy
+--
+-- >>> let t1 = " xxx" :: PictoralTimeline
+-- >>> let t2 = "yyy" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- yyyx
 --unionBy
 --  :: Ord t
 --  => (p -> p -> p)
@@ -588,7 +607,8 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 --  -> Timeline t p
 --unionBy _ t (Timeline []) = t
 --unionBy _ (Timeline []) t = t
---unionBy f t1@(Timeline x:xs) t2@(Timeline y:ys) = _
+--unionBy f t1@(Timeline x:xs) t2@(Timeline y:ys)
+--  | 
 
 
 -- TODO: optimization

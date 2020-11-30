@@ -722,6 +722,25 @@ difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
 -----------------------------------------------------------------------------
 -- * Transformations
 
+-- | Reverse the timeline.
+reverse :: Timeline t p -> Timeline t p
+reverse (Timeline xs) = Timeline (Prelude.reverse xs) 
+
+
+-- | Shift all events in time by `n`
+-- 
+-- >>> shift 1 "x y z" :: PictoralTimeline
+--  x y z
+-- 
+-- >>> shift 2 "x y z" :: PictoralTimeline
+--   x y z
+--
+-- >>> shift (-1) "x y z" :: PictoralTimeline
+-- x y z
+shift :: (Ord t, Num t) => t -> Timeline t p -> Timeline t p
+shift n (Timeline xs) = unsafeFromList $ map shift' xs
+  where 
+    shift' (Event i p) = Event (Interval.shift n i) p
 
 -----------------------------------------------------------------------------
 -- * Conversion

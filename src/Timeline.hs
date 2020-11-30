@@ -12,12 +12,14 @@ module Timeline where
 
 import           Event
 import           Prelude             hiding (null, subtract, take, takeWhile, filter, drop, dropWhile, reverse)
-import qualified Prelude (drop, reverse)
+import qualified Prelude             (drop, reverse)
 
 import           Data.Foldable       (asum)
 import           Data.Maybe          (mapMaybe)
-import           Interval
+import           Interval            hiding (shift)
+import qualified Interval            (shift)
 import           OverlappingTimeline
+import GHC.Base (join)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -398,11 +400,18 @@ takeWhile f (Timeline (x:xs))
   | f x = Timeline (x : getTimeline (takeWhile f (Timeline xs)))
   | otherwise = empty
 
---flatMap
---  :: (Event t a -> Timeline t b)
---  -> Timeline t a
---  -> Timeline t b
---flatMap f timeline = _
+-- | Monadic bind.
+--
+-- >>> f (Event i p) = singleton (Event i 'a')
+-- >>> t = "xxx yyy" :: PictoralTimeline
+-- >>> flatMap t f
+-- aaa aaa 
+flatMap
+  :: Timeline t a
+  -> (Event t a -> Timeline t b)
+  -> Timeline t b
+flatMap (Timeline []) _ = empty
+flatMap (Timeline xs) f = unsafeFromList $ join $ map getTimeline (fmap f xs)   
 
 -- | \( O(n) \). Filter all events that satisfy the predicate.
 --
@@ -713,9 +722,6 @@ difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
 -----------------------------------------------------------------------------
 -- * Transformations
 
--- | Reverse the timeline.
-reverse :: Timeline t p -> Timeline t p
-reverse (Timeline xs) = Timeline (Prelude.reverse xs) 
 
 -----------------------------------------------------------------------------
 -- * Conversion

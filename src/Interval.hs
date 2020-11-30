@@ -85,6 +85,12 @@ concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
 
 ------------------------------------------------------------------------------
+-- * Transformations
+
+shift :: (Num t, Ord t) => t -> Interval t -> Interval t
+shift n (Interval (a, b)) = mkInterval (a + n) (b + n)
+
+------------------------------------------------------------------------------
 -- * Properties
 
 -- |

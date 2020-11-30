@@ -16,8 +16,8 @@ import qualified Prelude             (drop, reverse)
 
 import           Data.Foldable       (asum)
 import           Data.Maybe          (mapMaybe)
-import           Interval            hiding (shift)
-import qualified Interval            (shift)
+import           Interval            hiding (shiftWith)
+import qualified Interval            (shiftWith)
 import           OverlappingTimeline
 import GHC.Base (join)
 
@@ -729,18 +729,23 @@ reverse (Timeline xs) = Timeline (Prelude.reverse xs)
 
 -- | Shift all events in time by `n`
 -- 
--- >>> shift 1 "x y z" :: PictoralTimeline
+-- >>> shiftWith (+) 1 "x y z" :: PictoralTimeline
 --  x y z
 -- 
--- >>> shift 2 "x y z" :: PictoralTimeline
+-- >>> shift (+) 2 "x y z" :: PictoralTimeline
 --   x y z
 --
--- >>> shift (-1) "x y z" :: PictoralTimeline
+-- >>> shift (+) (-1) "x y z" :: PictoralTimeline
 -- x y z
-shift :: (Ord t, Num t) => t -> Timeline t p -> Timeline t p
-shift n (Timeline xs) = unsafeFromList $ map shift' xs
+shiftWith 
+  :: Ord t 
+  => (t -> t -> t)
+  -> t 
+  -> Timeline t p 
+  -> Timeline t p
+shiftWith f n (Timeline xs) = unsafeFromList $ map (shiftWith' f) xs
   where 
-    shift' (Event i p) = Event (Interval.shift n i) p
+    shiftWith' func (Event i p) = Event (Interval.shiftWith func n i) p
 
 -----------------------------------------------------------------------------
 -- * Conversion

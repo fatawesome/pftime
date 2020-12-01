@@ -10,6 +10,7 @@
 
 # haskel; (?)
 dist-newstyle
+out/
 
 # MacOS system stuff
 .DS_Store

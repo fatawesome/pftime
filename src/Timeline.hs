@@ -479,22 +479,6 @@ takeWhile f (Timeline (x:xs))
   | f x = Timeline (x : getTimeline (takeWhile f (Timeline xs)))
   | otherwise = empty
 
--- | Monadic bind.
---
--- >>> f a b = b  
--- >>> g (Event i p) = singleton (Event i 'a')
--- >>> t = "xxx yyy" :: PictoralTimeline
--- >>> flatMapWith f t g
--- aaa aaa 
-flatMapWith
-  :: Ord t
-  => (b -> b -> b)
-  -> Timeline t a
-  -> (Event t a -> Timeline t b)
-  -> Timeline t b
-flatMapWith _ (Timeline []) _ = empty
-flatMapWith f (Timeline xs) g = fromListWith f $ join $ map getTimeline (fmap g xs)
-
 -- | \( O(n) \). Filter all events that satisfy the predicate.
 --
 -- >>> let t = "x y x z" :: PictoralTimeline
@@ -749,6 +733,22 @@ shiftWith
 shiftWith f n (Timeline xs) = unsafeFromList $ map (shiftWith' f) xs
   where 
     shiftWith' func (Event i p) = Event (Interval.shiftWith func n i) p
+
+-- | Monadic bind.
+--
+-- >>> f a b = b  
+-- >>> g (Event i p) = singleton (Event i 'a')
+-- >>> t = "xxx yyy" :: PictoralTimeline
+-- >>> flatMapWith f t g
+-- aaa aaa 
+flatMapWith
+  :: Ord t
+  => (b -> b -> b)
+  -> Timeline t a
+  -> (Event t a -> Timeline t b)
+  -> Timeline t b
+flatMapWith _ (Timeline []) _ = empty
+flatMapWith f (Timeline xs) g = fromListWith f $ join $ map getTimeline (fmap g xs)
 
 -----------------------------------------------------------------------------
 -- * Conversion

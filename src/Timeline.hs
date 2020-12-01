@@ -402,16 +402,19 @@ takeWhile f (Timeline (x:xs))
 
 -- | Monadic bind.
 --
--- >>> f (Event i p) = singleton (Event i 'a')
+-- >>> f a b = b  
+-- >>> g (Event i p) = singleton (Event i 'a')
 -- >>> t = "xxx yyy" :: PictoralTimeline
--- >>> flatMap t f
+-- >>> flatMapWith f t g
 -- aaa aaa 
-flatMap
-  :: Timeline t a
+flatMapWith
+  :: Ord t
+  => (b -> b -> b)
+  -> Timeline t a
   -> (Event t a -> Timeline t b)
   -> Timeline t b
-flatMap (Timeline []) _ = empty
-flatMap (Timeline xs) f = unsafeFromList $ join $ map getTimeline (fmap f xs)   
+flatMapWith _ (Timeline []) _ = empty
+flatMapWith f (Timeline xs) g = fromListWith f $ join $ map getTimeline (fmap g xs)
 
 -- | \( O(n) \). Filter all events that satisfy the predicate.
 --

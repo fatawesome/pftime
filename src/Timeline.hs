@@ -320,6 +320,85 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
   where
     diff = subtract ix i
     insertPayload is p = map (`Event` p) is
+    
+-- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
+--
+-- >>> let t = "xxx" :: PictoralTimeline
+-- >>> drop 0 t
+-- xxx
+--
+-- >>> let t = "xxx yyy" :: PictoralTimeline
+-- >>> drop 3 t == empty
+-- True
+--
+-- >>> let t = "xxx yyy" :: PictoralTimeline
+-- >>> drop 2 t == empty
+-- True
+--
+-- >>> let t = "xxx yyy zzz" :: PictoralTimeline
+-- >>> drop 1 t
+--     yyy zzz
+drop
+  :: Ord t
+  => Int
+  -> Timeline t p
+  -> Timeline t p
+drop _ (Timeline []) = empty
+drop n timeline@(Timeline (_:xs))
+  | n > 0     = drop (n-1) (Timeline xs)
+  | otherwise = timeline
+
+
+-- | Return suffix after dropping events which satisfy the predicate.
+--
+-- >>> let t = "yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+-- yyy
+--
+-- >>> let t = "x yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+--   yyy
+--
+-- >>> let t = "x x yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+--     yyy
+--
+-- >>> let t = "z xxx yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+-- z xxx yyy
+dropWhile
+  :: Ord t
+  => (Event t p -> Bool)
+  -> Timeline t p
+  -> Timeline t p
+dropWhile _ (Timeline []) = empty
+dropWhile f t@(Timeline (x:xs))
+  | f x = Timeline (getTimeline (dropWhile f (Timeline xs)))
+  | otherwise = t
+
+-- | Drop everything until given point in time.
+--
+-- >>> let t = "xxx xxx xxx" :: PictoralTimeline
+-- >>> dropBefore 4 t
+--     xxx xxx
+--
+-- >>> let t = "xxx" :: PictoralTimeline
+-- >>> dropBefore 1 t
+--  xx
+-- 
+-- >>> let t = "  xxx" :: PictoralTimeline
+-- >>> dropBefore 1 t
+--   xxx  
+dropBefore
+  :: Ord t
+  => t
+  -> Timeline t p
+  -> Timeline t p
+dropBefore _ (Timeline []) = empty
+dropBefore t timeline@(Timeline (Event (Interval (l, r)) p : xs))
+  | t <= l = timeline
+  | t >= r = dropBefore t (Timeline xs)
+  | otherwise = Timeline (Event (Interval (t, r)) p : xs )
 
 
 -- | Update timeline with event.
@@ -485,85 +564,6 @@ window i@(Interval (l, r)) (Timeline ((Event (Interval (lx, rx)) px) : xs))
     = Timeline (Event (Interval (max l lx, rx)) px : getTimeline (window (Interval (rx, r)) (Timeline xs)))
 
   | otherwise = empty
-
--- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
---
--- >>> let t = "xxx" :: PictoralTimeline
--- >>> drop 0 t
--- xxx
---
--- >>> let t = "xxx yyy" :: PictoralTimeline
--- >>> drop 3 t == empty
--- True
---
--- >>> let t = "xxx yyy" :: PictoralTimeline
--- >>> drop 2 t == empty
--- True
---
--- >>> let t = "xxx yyy zzz" :: PictoralTimeline
--- >>> drop 1 t
---     yyy zzz
-drop
-  :: Ord t
-  => Int
-  -> Timeline t p
-  -> Timeline t p
-drop _ (Timeline []) = empty
-drop n timeline@(Timeline (_:xs))
-  | n > 0     = drop (n-1) (Timeline xs)
-  | otherwise = timeline
-
-
--- | Return suffix after dropping events which satisfy the predicate.
---
--- >>> let t = "yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
--- yyy
---
--- >>> let t = "x yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
---   yyy
---
--- >>> let t = "x x yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
---     yyy
---
--- >>> let t = "z xxx yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
--- z xxx yyy
-dropWhile
-  :: Ord t
-  => (Event t p -> Bool)
-  -> Timeline t p
-  -> Timeline t p
-dropWhile _ (Timeline []) = empty
-dropWhile f t@(Timeline (x:xs))
-  | f x = Timeline (getTimeline (dropWhile f (Timeline xs)))
-  | otherwise = t
-
--- | Drop everything until given point in time.
---
--- >>> let t = "xxx xxx xxx" :: PictoralTimeline
--- >>> dropBefore 4 t
---     xxx xxx
---
--- >>> let t = "xxx" :: PictoralTimeline
--- >>> dropBefore 1 t
---  xx
--- 
--- >>> let t = "  xxx" :: PictoralTimeline
--- >>> dropBefore 1 t
---   xxx  
-dropBefore
-  :: Ord t
-  => t
-  -> Timeline t p
-  -> Timeline t p
-dropBefore _ (Timeline []) = empty
-dropBefore t timeline@(Timeline (Event (Interval (l, r)) p : xs))
-  | t <= l = timeline
-  | t >= r = dropBefore t (Timeline xs)
-  | otherwise = Timeline (Event (Interval (t, r)) p : xs )
 
 -----------------------------------------------------------------------------
 -- * Combine

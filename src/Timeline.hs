@@ -716,6 +716,22 @@ difference
 difference x (Timeline []) = x
 difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
 
+_zipWith
+  :: (Ord tA, Ord tB, Ord tC)
+  => (Event tA a -> Event tB b -> Event tC c)
+  -> Timeline t a
+  -> Timeline t b
+  -> Timeline t c
+_zipWith f a b = _
+
+_alignWith
+  :: (Ord tA, Ord tB, Ord tC)
+  => (Event tA a -> Event tB b -> Event tC c)
+  -> Timeline t a
+  -> Timeline t b
+  -> Timeline t c
+_alignWith f a b = _
+
 -----------------------------------------------------------------------------
 -- * Transformations
 

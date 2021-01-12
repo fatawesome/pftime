@@ -603,6 +603,16 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 -- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
 -- >>> unionBy (\a b -> b) t1 t2
 -- xxaaaybbbzccc
+--
+-- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
+-- >>> let t2 = " aa bb cc" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xaaxbbxcc
+--
+-- >>> let t1 = " aa bb cc" :: PictoralTimeline
+-- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xxxxxxxxc
 unionBy
   :: Ord t
   => (p -> p -> p)
@@ -722,8 +732,10 @@ reverse (Timeline xs) = Timeline (Prelude.reverse xs)
 -- >>> shift (+) 2 "x y z" :: PictoralTimeline
 --   x y z
 --
--- >>> shift (+) (-1) "x y z" :: PictoralTimeline
+-- >>> shift (+) (-1) "  x y z" :: PictoralTimeline
 -- x y z
+-- 
+-- PictoralTimelineWithStart
 shiftWith 
   :: Ord t 
   => (t -> t -> t)
@@ -735,6 +747,10 @@ shiftWith f n (Timeline xs) = unsafeFromList $ map (shiftWith' f) xs
     shiftWith' func (Event i p) = Event (Interval.shiftWith func n i) p
 
 -- | Monadic bind.
+-- 
+-- (>>=) :: Timeline t a -> (a -> Timeline t b) -> Timeline t b
+-- 
+-- timeline >>= f = flatMapWith const timeline (\event -> f $ payload event)
 --
 -- >>> f a b = b  
 -- >>> g (Event i p) = singleton (Event i 'a')
@@ -749,6 +765,16 @@ flatMapWith
   -> Timeline t b
 flatMapWith _ (Timeline []) _ = empty
 flatMapWith f (Timeline xs) g = fromListWith f $ join $ map getTimeline (fmap g xs)
+
+-- TODO: implementation
+-- See notebook (near dlt exam).
+withReference 
+  :: (Ord abs, Ord rel)
+  => (a -> b -> c)       -- ^ payload merge strategy
+  -> Timeline abs a      -- ^ timeline in absolute time 
+  -> Timeline rel b      -- ^ timeline in relative time
+  -> Timeline abs c      -- ^ resulting timeline in absolute time
+withReference ft fp a b = _
 
 -----------------------------------------------------------------------------
 -- * Conversion
@@ -772,3 +798,33 @@ findIntersection
   -> [Interval t]       -- ^ intervals in which to search.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
 findIntersection i xs = asum (map (Interval.intersect i) xs)
+
+-- | General map function.
+-- Basically, an interface for monotonic functions.
+_map
+  :: Ord t
+  => (Event t p -> Event t p)
+  -> Timeline t p
+  -> Timeline t p
+_map f (Timeline xs) = Timeline (map f xs)
+
+_shiftWith
+  :: Ord t
+  => (t -> t -> t)
+  -> t
+  -> Timeline t p
+  -> Timeline t p
+_shiftWith timeAdd s = _map f
+  where
+    f (Event i p) = Event (Interval.shiftWith timeAdd s i) p
+
+
+
+-- TODO:
+-- (+) 1. Learn functional arrays.
+-- 2. Implement structure using functional arrays.
+-- 3. Create some test dataset. Keywords: timeline, continuous events
+-- 4. Implement some kind of application around the data structure
+-- 5. Visualize the timeline.
+-- 6. Allow interactions with timeline.
+-- 

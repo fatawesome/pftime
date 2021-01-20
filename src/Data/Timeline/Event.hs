@@ -1,6 +1,7 @@
-module Event where
+module Data.Timeline.Event where
 
-import           Interval
+import           Data.Timeline.Interval (Interval)
+import qualified Data.Timeline.Interval as Interval
 
 data Event t p = Event {
   interval :: Interval t,

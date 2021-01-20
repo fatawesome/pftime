@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1bdd6f5b658847561a4681a4ee27100ac5e314770d55060c40a7cf0aa8ba2c5d
+-- hash: 2770cdf5cec23c9b8af585842f22943f188a2672313b3238b58d080f5aa14622
 
 name:           pftime
 version:        0.1.0.0
@@ -33,11 +33,11 @@ custom-setup
 
 library
   exposed-modules:
-      Event
-      Interval
-      OverlappingTimeline
-      PictoralTimeline
-      Timeline
+      Data.Timeline
+      Data.Timeline.Event
+      Data.Timeline.Interval
+      Data.Timeline.Overlapping
+      Data.Timeline.Pictoral
   other-modules:
       Paths_pftime
   hs-source-dirs:

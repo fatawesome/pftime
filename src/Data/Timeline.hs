@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
-
 -----------------------------------------------------------------------------
 -- |
 -- Module : Timeline
@@ -8,21 +7,22 @@
 --
 -- The @'Timeline' t p@ represents the event set where 't' stands for time and 'p' for payload.
 -----------------------------------------------------------------------------
-module Timeline where
+module Data.Timeline where
 
-import           Event
-import           Prelude             hiding (null, subtract, take, takeWhile, filter, drop, dropWhile)
-import qualified Prelude (drop)
+import           Prelude                   hiding (drop, dropWhile, filter,
+                                            null, subtract, take, takeWhile)
+import qualified Prelude
 
-import           Data.Foldable       (asum)
-import           Data.Maybe          (mapMaybe)
-import           Interval
-import           OverlappingTimeline
+import           Data.Foldable             (asum)
+import           Data.Maybe                (mapMaybe)
+
+import           Data.Timeline.Event       as Event
+import           Data.Timeline.Interval    as Interval
+import           Data.Timeline.Overlapping
 
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Prelude hiding (take, takeWhile, subtract, null, filter, drop, dropWhile)
--- >>> import qualified Prelude (drop)
 -- >>> import PictoralTimeline
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
@@ -539,10 +539,10 @@ dropWhile f t@(Timeline (x:xs))
 -- >>> let t = "xxx" :: PictoralTimeline
 -- >>> dropBefore 1 t
 --  xx
--- 
+--
 -- >>> let t = "  xxx" :: PictoralTimeline
 -- >>> dropBefore 1 t
---   xxx  
+--   xxx
 dropBefore
   :: Ord t
   => t
@@ -608,7 +608,7 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 --unionBy _ t (Timeline []) = t
 --unionBy _ (Timeline []) t = t
 --unionBy f t1@(Timeline x:xs) t2@(Timeline y:ys)
---  | 
+--  |
 
 
 -- TODO: optimization
@@ -638,7 +638,7 @@ intersect (Timeline xs) (Timeline ys)
       = case findIntersectionFlip (map interval t) i of
         Just x  -> Just $ Event x p
         Nothing -> Nothing
-    findIntersectionFlip x y = findIntersection y x 
+    findIntersectionFlip x y = findIntersection y x
 
 -- TODO: optimization
 -- Number of iterations for one interval can be reduced given the fact that

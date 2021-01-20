@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2770cdf5cec23c9b8af585842f22943f188a2672313b3238b58d080f5aa14622
+-- hash: 68c2bb554901cac5ddff106bcf57dd1eece09ce0ce3fb83b6987032c8cf9ce2e
 
 name:           pftime
 version:        0.1.0.0
@@ -33,11 +33,15 @@ custom-setup
 
 library
   exposed-modules:
-      Data.Timeline
+      Data.Timeline.Class
       Data.Timeline.Event
       Data.Timeline.Interval
+      Data.Timeline.Lazy
+      Data.Timeline.Naive
       Data.Timeline.Overlapping
       Data.Timeline.Pictoral
+      Data.Timeline.Strict
+      Data.Timeline.Time
   other-modules:
       Paths_pftime
   hs-source-dirs:
@@ -48,6 +52,7 @@ library
     , extra >=1.7.7
     , hspec
     , split
+    , vector
   default-language: Haskell2010
 
 executable pftime-exe
@@ -63,6 +68,7 @@ executable pftime-exe
     , extra >=1.7.7
     , hspec
     , split
+    , vector
   default-language: Haskell2010
 
 test-suite doctests
@@ -85,6 +91,7 @@ test-suite doctests
     , pftime
     , split
     , template-haskell
+    , vector
   default-language: Haskell2010
 
 test-suite pftime-test
@@ -104,4 +111,5 @@ test-suite pftime-test
     , hspec
     , pftime
     , split
+    , vector
   default-language: Haskell2010

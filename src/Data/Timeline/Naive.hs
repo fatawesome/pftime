@@ -7,8 +7,9 @@
 --
 -- The @'Timeline' t p@ represents the event set where 't' stands for time and 'p' for payload.
 -----------------------------------------------------------------------------
-module Data.Timeline where
+module Data.Timeline.Naive where
 
+import           Data.Coerce
 import           Prelude                   hiding (drop, dropWhile, filter,
                                             null, subtract, take, takeWhile)
 import qualified Prelude
@@ -689,3 +690,11 @@ findIntersection
   -> [Interval t]       -- ^ intervals in which to search.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
 findIntersection i xs = asum (map (Interval.intersect i) xs)
+
+withReference
+  :: (Ord a, Ord r, Num r, Coercible a r)
+  => Timeline a p
+  -> Timeline r p
+  -> Timeline a p
+withReference = error "not implemented"
+

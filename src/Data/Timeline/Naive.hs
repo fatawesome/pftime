@@ -684,17 +684,45 @@ isValid = isAscending . map interval . toList
 -----------------------------------------------------------------------------
 -- * Helpers
 
+
+
 findIntersection
   :: Ord t
   => Interval t         -- ^ interval to find intersection with.
   -> [Interval t]       -- ^ intervals in which to search.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
-findIntersection i xs = asum (map (Interval.intersect i) xs)
+findIntersection i xs = asum (map (Interval.intersect i) xs) 
 
-withReference
+coerceInterval 
+  :: (Ord a, Coercible a r)
+  => Interval r
+  -> Interval a
+coerceInterval (Interval (l, r)) = mkInterval (coerce l, coerce r)
+
+insertRelative
   :: (Ord a, Ord r, Num r, Coercible a r)
   => Timeline a p
-  -> Timeline r p
+  -> Event r p
   -> Timeline a p
-withReference = error "not implemented"
+insertRelative (Timeline []) _ = empty
+insertRelative t@(Timeline [Event i@(Interval (l, r)) p]) (Event i'@(Interval (l', r')) p')
+  | not $ i `Interval.intersects` coerceInterval i' = t
+insertRelative _ _ = error "not implemented"
 
+-- | Insert relative timeline into the absolute one.
+-- 
+withReference
+  :: (Ord a, Ord r, Num r, Coercible a r)
+  => (a -> r -> a)
+  -> (p -> p -> p) -- ^ Combine payloads.  
+  -> Timeline a p  -- ^ Timeline in absolute time.
+  -> Timeline r p  -- ^ Timeline in relative time.
+  -> Timeline a p  -- ^ Timeline in absolute time
+withReference _ _ (Timeline []) _             = empty
+withReference _ _ t             (Timeline []) = t
+
+withReference ft fp (Timeline (x:xs)) (Timeline (y:ys)) = error "not yet implemented"
+  where
+    absInterval = constructInterval (interval x) (interval y)   
+    constructInterval (Interval (aLeft, _)) (Interval (bLeft, bRight)) 
+      = mkInterval (ft aLeft bLeft, ft aLeft bRight)  

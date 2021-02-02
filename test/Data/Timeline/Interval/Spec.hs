@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-module IntervalSpec where
+module Data.Timeline.Interval.Spec where
 
 --import Interval
 --

@@ -8,7 +8,8 @@
 -----------------------------------------------------------------------------
 module Data.Timeline.Interval where
 
-import           Data.Maybe (catMaybes)
+import Data.Coerce
+import           Data.Maybe (catMaybes, isJust)
 import           Prelude    hiding (length, subtract)
 
 -- $setup
@@ -85,6 +86,14 @@ subtract x@(Interval (x1, x2)) y
 concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
 
+-- | Shift interval with relative time by the given offset.
+shift 
+  :: (Ord t, Num t) 
+  => t 
+  -> Interval t 
+  -> Interval t
+shift offset (Interval x) = mkInterval (fst x + offset, snd x + offset)
+
 ------------------------------------------------------------------------------
 -- * Properties
 
@@ -99,3 +108,12 @@ adjacent
   -> Bool
 adjacent (Interval (a1, a2)) (Interval (b1, b2))
   = a2 == b1 || a1 == b2
+  
+intersects
+  :: Ord t
+  => Interval t
+  -> Interval t
+  -> Bool
+intersects a b
+  | isJust (a `intersect` b) = True
+  | otherwise                = False

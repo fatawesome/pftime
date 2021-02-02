@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 68c2bb554901cac5ddff106bcf57dd1eece09ce0ce3fb83b6987032c8cf9ce2e
+-- hash: f741c385e6c6962261765654cdfe15d7db8e6c87c29a50af56ab8bf7d652ff45
 
 name:           pftime
 version:        0.1.0.0
@@ -75,9 +75,9 @@ test-suite doctests
   type: exitcode-stdio-1.0
   main-is: doctests.hs
   other-modules:
-      IntervalSpec
+      Data.Timeline.Interval.Spec
+      Data.Timeline.NaiveSpec
       Main
-      TimelineSpec
       Paths_pftime
   hs-source-dirs:
       test
@@ -98,8 +98,8 @@ test-suite pftime-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      IntervalSpec
-      TimelineSpec
+      Data.Timeline.Interval.Spec
+      Data.Timeline.NaiveSpec
       Paths_pftime
   hs-source-dirs:
       test

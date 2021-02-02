@@ -16,6 +16,8 @@ import qualified Prelude
 
 import           Data.Foldable             (asum)
 import           Data.Maybe                (mapMaybe)
+import           Data.Time
+import           Debug.Trace
 
 import           Data.Timeline.Event       as Event
 import           Data.Timeline.Interval    hiding (intersect, shiftWith)
@@ -323,7 +325,7 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
   where
     diff = subtract ix i
     insertPayload is p = map (`Event` p) is
-    
+
 
 -- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
 --
@@ -389,10 +391,10 @@ dropWhile f t@(Timeline (x:xs))
 -- >>> let t = "xxx" :: PictoralTimeline
 -- >>> dropBefore 1 t
 --  xx
--- 
+--
 -- >>> let t = "  xxx" :: PictoralTimeline
 -- >>> dropBefore 1 t
---   xxx  
+--   xxx
 dropBefore
   :: Ord t
   => t
@@ -605,7 +607,7 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 --
 -- >>> unionBy (\a b -> b) " x y z" "x y z" :: PictoralTimeline
 -- xxyyzz
--- 
+--
 -- >>> unionBy (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
 -- xaxbx
 --
@@ -629,7 +631,7 @@ unionBy
   -> Timeline t p
   -> Timeline t p
   -> Timeline t p
-unionBy f x y = _unionBy f x y empty      
+unionBy f x y = _unionBy f x y empty
 
 -- @'unionBy' helper function.
 -- Uses reversed accumulator timeline to allow \( O(1) \) access to the last accumulated element.
@@ -647,10 +649,10 @@ _unionBy _ (Timeline []) (Timeline []) acc           = reverse acc
 _unionBy _ x (Timeline []) (Timeline []) = x
 _unionBy _ (Timeline []) y (Timeline []) = y
 
-_unionBy f (Timeline (x:xs)) (Timeline []) acc 
+_unionBy f (Timeline (x:xs)) (Timeline []) acc
   = _unionBy f (Timeline xs) empty (_reversedInsert (flip f) x acc)
 
-_unionBy f (Timeline []) (Timeline (y:ys)) acc 
+_unionBy f (Timeline []) (Timeline (y:ys)) acc
   = _unionBy f empty (Timeline ys) (_reversedInsert f y acc)
 
 _unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) (Timeline [])
@@ -661,14 +663,14 @@ _unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys
   | xi < yi = _unionBy f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
   | otherwise = _unionBy f t1 (Timeline ys) (_reversedInsert f y acc)
 
-_reversedInsert 
+_reversedInsert
   :: Ord t
   => (p -> p -> p)
   -> Event t p
   -> Timeline t p
-  -> Timeline t p 
+  -> Timeline t p
 _reversedInsert _    el (Timeline [])     = singleton el
-_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (mergeWith func z el) ++ zs 
+_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (mergeWith func z el) ++ zs
 
 
 -- TODO: optimization
@@ -732,40 +734,40 @@ difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
 
 -- | Reverse the timeline.
 reverse :: Timeline t p -> Timeline t p
-reverse (Timeline xs) = Timeline (Prelude.reverse xs) 
+reverse (Timeline xs) = Timeline (Prelude.reverse xs)
 
 
 -- | Shift all events in time by `n`
--- 
+--
 -- >>> shiftWith (+) 1 "x y z" :: PictoralTimeline
 --  x y z
--- 
+--
 -- >>> shiftWith (+) 2 "x y z" :: PictoralTimeline
 --   x y z
 --
 -- >>> shiftWith (+) (-1) "  x y z" :: PictoralTimeline
 --  x y z
-shiftWith 
-  :: Ord t 
+shiftWith
+  :: Ord t
   => (t -> t -> t)
-  -> t 
-  -> Timeline t p 
+  -> t
+  -> Timeline t p
   -> Timeline t p
 shiftWith f n (Timeline xs) = unsafeFromList $ map (shiftWith' f) xs
-  where 
+  where
     shiftWith' func (Event i p) = Event (Interval.shiftWith func n i) p
 
 -- | Monadic bind.
--- 
+--
 -- (>>=) :: Timeline t a -> (a -> Timeline t b) -> Timeline t b
--- 
+--
 -- timeline >>= f = flatMapWith const timeline (\event -> f $ payload event)
 --
--- >>> f a b = b  
+-- >>> f a b = b
 -- >>> g (Event i p) = singleton (Event i 'a')
 -- >>> t = "xxx yyy" :: PictoralTimeline
 -- >>> flatMapWith f t g
--- aaa aaa 
+-- aaa aaa
 flatMapWith
   :: Ord t
   => (b -> b -> b)
@@ -796,38 +798,115 @@ findIntersection
   => Interval t         -- ^ interval to find intersection with.
   -> [Interval t]       -- ^ intervals in which to search.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
-findIntersection i xs = asum (map (Interval.intersect i) xs) 
+findIntersection i xs = asum (map (Interval.intersect i) xs)
 
-coerceInterval 
+coerceInterval
   :: (Ord a, Coercible a r)
   => Interval r
   -> Interval a
 coerceInterval (Interval (l, r)) = mkInterval (coerce l) (coerce r)
 
-insertRelative
-  :: (Ord a, Ord r, Num r, Coercible a r)
-  => Timeline a p
-  -> Event r p
-  -> Timeline a p
-insertRelative (Timeline []) _ = empty
-insertRelative t@(Timeline [Event i@(Interval (l, r)) p]) (Event i'@(Interval (l', r')) p')
-  | not $ i `Interval.intersects` coerceInterval i' = t
-insertRelative _ _ = error "not implemented"
-
 -- | Insert relative timeline into the absolute one.
--- 
+--
 withReference
   :: (Ord a, Ord r, Num r, Coercible a r)
   => (a -> r -> a)
-  -> (p -> p -> p) -- ^ Combine payloads.  
+  -> (p -> p -> p) -- ^ Combine payloads.
   -> Timeline a p  -- ^ Timeline in absolute time.
   -> Timeline r p  -- ^ Timeline in relative time.
-  -> Timeline a p  -- ^ Timeline in absolute time
+  -> Timeline a p  -- ^ Timeline in absolute time.
 withReference _ _ (Timeline []) _             = empty
 withReference _ _ t             (Timeline []) = t
+withReference ft fp absT (Timeline (y:ys)) 
+  = withReference ft fp (insertRelativeEvent ft fp y absT) (Timeline ys)
 
-withReference ft fp (Timeline (x:xs)) (Timeline (y:ys)) = error "not yet implemented"
+insertRelativeEvent
+  :: (Ord a, Ord r, Num r)
+  => (a -> r -> a)
+  -> (p -> p -> p)
+  -> Event r p
+  -> Timeline a p
+  -> Timeline a p
+insertRelativeEvent _ _ _ (Timeline []) = empty
+insertRelativeEvent ft fp event@(Event (Interval (l, r)) p) (Timeline (x:xs))
+  --    xxx
+  -- yyy
+  | absLeft > tmpEnd
+    = Timeline (x : getTimeline (insertRelativeEvent ft fp event (Timeline xs)))
+
+  -- xxx
+  -- yyy
+  | absLeft == timelineStart && absRight == tmpEnd
+    = Timeline (Event (mkInterval absLeft absRight) (fp p (payload x)) : xs)
+
+  -- xxx
+  -- yyyy
+  | absLeft == timelineStart && absRight < tmpEnd
+    = Timeline (
+      [ Event (mkInterval absLeft absRight) (fp p (payload x))
+      , Event (mkInterval absRight tmpEnd) p
+      ] <> xs
+    )
+
+  --  xxx
+  -- yyyy
+  | absLeft > timelineStart && absRight == tmpEnd
+    = Timeline (
+      [ Event (mkInterval timelineStart absLeft) (payload x)
+      , Event (mkInterval absLeft absRight) (fp p (payload x))
+      ] <> xs
+    )
+
+  --  xx
+  -- yyyy
+  | absLeft > timelineStart && absRight < tmpEnd
+    = Timeline (
+      [ Event (mkInterval timelineStart absLeft) (payload x)
+      , Event (mkInterval absLeft absRight) (fp p (payload x))
+      , Event (mkInterval absRight tmpEnd) (payload x)
+      ] <> xs
+    )
+
+  | otherwise = error "not yet implemented"
+
+  --  xxx
+  -- yyy
+--  | absLeft > timelineStart && absRight > tmpEnd
+--   = Timeline (
+--     [ Event (mkInterval timelineStart absLeft) (payload x)
+--     , Event (mkInterval absLeft tmpEnd) (fp p (payload x))
+--     ] <> getTimeline (insertRelativeEvent ft fp (Event (mkInterval 0 (вот тут должно быть r минус то, что попало в предыдущий)) p) (Timeline xs))
+--   )
+
   where
-    absInterval = constructInterval (interval x) (interval y)   
-    constructInterval (Interval (aLeft, _)) (Interval (bLeft, bRight)) 
-      = mkInterval (ft aLeft bLeft, ft aLeft bRight)  
+    (timelineStart, tmpEnd) = getInterval $ interval x
+    absLeft  = ft timelineStart l
+    absRight = ft timelineStart r
+
+timeFormat = "%H:%M:%S"
+parseTime' = parseTimeOrError True defaultTimeLocale timeFormat
+
+absTime1 = parseTime' "19:00:00" :: UTCTime
+absTime2 = parseTime' "19:10:00" :: UTCTime
+absTime3 = parseTime' "19:15:00" :: UTCTime
+absTime4 = parseTime' "19:25:00" :: UTCTime
+relTime1 = 60  :: NominalDiffTime
+relTime2 = 120 :: NominalDiffTime
+
+absInterval1 = mkInterval absTime1 absTime2
+absInterval2 = mkInterval absTime3 absTime4
+relInterval1 = mkInterval relTime1 relTime2
+
+absEvent1 = Event absInterval1 "absEvent1"
+absEvent2 = Event absInterval2 "absEvent2"
+relEvent1 = Event relInterval1 "relEvent1"
+
+addTime :: UTCTime -> NominalDiffTime -> UTCTime
+addTime a r = addUTCTime r a
+
+mergeP :: String -> String -> String
+mergeP = (++) 
+
+absTimeline = unsafeFromList [absEvent1, absEvent2]
+
+test1 = insertRelativeEvent addTime mergeP relEvent1 absTimeline 

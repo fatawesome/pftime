@@ -181,7 +181,7 @@ insert
     = Timeline (
         [ Event (Interval (yleft, xleft)) pY
         , Event (Interval (xleft, yright)) (f pX pY)
-        , Event (Interval (yright, xright)) pX
+        , Event (Interval (yright, xright)) pX -- TODO: that is a bug. This interval should be checked for overlaps with the next one.
         ] <> xs
       )
 
@@ -208,7 +208,7 @@ insert
     = Timeline (
         [ Event (Interval (xleft, yleft)) pX
         , Event (Interval (yleft, xright)) (f pX pY)
-        , Event (Interval (xright, yright)) pY
+        , Event (Interval (xright, yright)) pY -- TODO: that is a bug. This interval should be checked for overlaps with the next one.
         ] <> xs
       )
 
@@ -218,7 +218,7 @@ insert
   | yleft == xleft && yright > xright
     = Timeline (
         [ Event (Interval (yleft, xright)) (f pX pY)
-        , Event (Interval (xright, yright)) pY
+        , Event (Interval (xright, yright)) pY -- TODO: that is a bug. This interval should be checked for overlaps with the next one.
         ] <> xs
       )
 
@@ -793,6 +793,15 @@ isValid = isAscending . map interval . toList
 -----------------------------------------------------------------------------
 -- * Helpers
 
+-- | General map function.
+-- Basically, an interface for monotonic functions.
+_map
+  :: Ord t
+  => (Event t p -> Event t p)
+  -> Timeline t p
+  -> Timeline t p
+_map f (Timeline xs) = Timeline (map f xs)
+
 findIntersection
   :: Ord t
   => Interval t         -- ^ interval to find intersection with.
@@ -817,7 +826,7 @@ withReference
   -> Timeline a p  -- ^ Timeline in absolute time.
 withReference _ _ (Timeline []) _             = empty
 withReference _ _ t             (Timeline []) = t
-withReference ft fp absT (Timeline (y:ys)) 
+withReference ft fp absT (Timeline (y:ys))
   = withReference ft fp (insertRelativeEvent ft fp y absT) (Timeline ys)
 
 insertRelativeEvent
@@ -882,31 +891,350 @@ insertRelativeEvent ft fp event@(Event (Interval (l, r)) p) (Timeline (x:xs))
     (timelineStart, tmpEnd) = getInterval $ interval x
     absLeft  = ft timelineStart l
     absRight = ft timelineStart r
+    
+absoluteToRelativeTo 
+  :: (Ord a, Ord r, Num r, Coercible a r)
+  => r
+  -> Timeline a p
+  -> Timeline r (Interval a)
+absoluteToRelativeTo _ (Timeline []) = empty  
+absoluteToRelativeTo start (Timeline ((Event i@(Interval (l, r)) _) : xs)) 
+  = Timeline (Event (mkInterval start eventEnd) i : toList (absoluteToRelativeTo eventEnd (Timeline xs)))
+  where
+    eventEnd = start + coerce r - coerce l
 
-timeFormat = "%H:%M:%S"
-parseTime' = parseTimeOrError True defaultTimeLocale timeFormat
+-- | Convert event time from relative to absolute starting from the given point.
+eventToAbsFrom
+  :: (Ord a, Num r, Coercible a r)
+  => a         -- ^ Starting point.
+  -> Event r p -- ^ Event in relative time.
+  -> Event a p -- ^ Same event in absolute time.
+eventToAbsFrom start (Event (Interval (l2, r2)) p)
+  = Event (mkInterval newAbsL newAbsR) p
+  where
+    newAbsL = coerce (coerce start + l2)
+    newAbsR = coerce (coerce start + r2)
 
-absTime1 = parseTime' "19:00:00" :: UTCTime
-absTime2 = parseTime' "19:10:00" :: UTCTime
-absTime3 = parseTime' "19:15:00" :: UTCTime
-absTime4 = parseTime' "19:25:00" :: UTCTime
-relTime1 = 60  :: NominalDiffTime
-relTime2 = 120 :: NominalDiffTime
+-- | Helper function for `withReference`. 
+-- Removes those intervals, which will not have payloads from the 2nd input timeline.
+-- (this is the difference from the normal `intersectionWith` below) 
+intersectWith'
+  :: Ord t
+  => (Event t p -> Event t p' -> Event t p')
+  -> Timeline t p
+  -> Timeline t p'
+  -> Timeline t p'
+intersectWith' _ (Timeline []) _ = empty
+intersectWith' _ _ (Timeline []) = empty
+intersectWith'
+  f
+  t1@(Timeline (e1@(Event (Interval (l1, r1)) p1) : xs))
+  t2@(Timeline (e2@(Event (Interval (l2, r2)) p2) : ys))
 
-absInterval1 = mkInterval absTime1 absTime2
-absInterval2 = mkInterval absTime3 absTime4
-relInterval1 = mkInterval relTime1 relTime2
+  -- 5
+  | l1 > r2 = intersectWith' f t1 (Timeline ys)
 
-absEvent1 = Event absInterval1 "absEvent1"
-absEvent2 = Event absInterval2 "absEvent2"
-relEvent1 = Event relInterval1 "relEvent1"
+  -- 6
+  | r1 < l2 = intersectWith' f (Timeline xs) t2
 
-addTime :: UTCTime -> NominalDiffTime -> UTCTime
-addTime a r = addUTCTime r a
+  -- 1
+  | l1 > l2 && r1 < r2
+    = Timeline (
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith' f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
 
-mergeP :: String -> String -> String
-mergeP = (++) 
+  -- 2
+  | l1 < l2 && r1 > r2
+    = Timeline (
+      f (Event (mkInterval l2 r2) p1) e2
+      :
+      getTimeline (intersectWith' f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
 
-absTimeline = unsafeFromList [absEvent1, absEvent2]
+  -- 3
+  | l1 == l2 && r1 > r2
+    = Timeline (
+      f (Event (mkInterval l1 r2) p1) e2
+      :
+      getTimeline (intersectWith' f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
 
-test1 = insertRelativeEvent addTime mergeP relEvent1 absTimeline 
+  -- 4
+  | l1 < l2 && r1 == r2
+    = Timeline (
+      f (Event (mkInterval l2 r2) p1) e2
+      :
+      getTimeline (intersectWith' f (Timeline xs) (Timeline ys))
+    )
+
+  -- 7
+  | l1 == l2 && r1 == r2
+    = Timeline (f e1 e2 : getTimeline (intersectWith' f (Timeline xs) (Timeline ys)))
+
+  -- 9
+  | l1 < l2 && r1 < r2
+    = Timeline (
+      f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
+      :
+      getTimeline (intersectWith' f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 8
+  | l1 > l2 && r1 > r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p2
+      , f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
+      ] <> getTimeline (intersectWith' f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 10
+  | l1 == l2 && r1 < r2
+    = Timeline (
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith' f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 11
+  | l1 > l2 && r1 == r2
+    = Timeline (
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith' f (Timeline xs) (Timeline ys))
+    )
+  | otherwise = error "One or multiple timelines do not satisfy timeline properties."
+
+intersectWith
+  :: Ord t
+  => (Event t p -> Event t p -> Event t p)
+  -> Timeline t p
+  -> Timeline t p
+  -> Timeline t p
+intersectWith _ (Timeline []) _ = empty
+intersectWith _ _ (Timeline []) = empty
+intersectWith
+  f
+  t1@(Timeline (e1@(Event (Interval (l1, r1)) p1):xs))
+  t2@(Timeline (e2@(Event (Interval (l2, r2)) p2):ys))
+
+  -- 5
+  | l1 > r2 = Timeline (e2 : getTimeline (intersectWith f t1 (Timeline ys)))
+
+  -- 6
+  | r1 < l2 = Timeline (e1 : getTimeline (intersectWith f (Timeline xs) t2))
+
+  -- 1
+  | l1 > l2 && r1 < r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p2
+      , f e1 (Event (mkInterval l1 r1) p2)
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 2
+  | l1 < l2 && r1 > r2
+    = Timeline (
+      [ Event (mkInterval l1 l2) p1
+      , f (Event (mkInterval l2 r2) p1) e2
+      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 3
+  | l1 == l2 && r1 > r2
+    = Timeline (
+      f (Event (mkInterval l1 r2) p1) e2
+      :
+      getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 4
+  | l1 < l2 && r1 == r2
+    = Timeline (
+      [ Event (mkInterval l1 l2) p1
+      , f (Event (mkInterval l2 r2) p1) e2
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+    )
+
+  -- 7
+  | l1 == l2 && r1 == r2
+    = Timeline (f e1 e2 : getTimeline (intersectWith f (Timeline xs) (Timeline ys)))
+
+  -- 9
+  | l1 < l2 && r1 < r2
+    = Timeline (
+      [ Event (mkInterval l1 l2) p1
+      , f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 8
+  | l1 > l2 && r1 > r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p2
+      , f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
+      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 10
+  | l1 == l2 && r1 < r2
+    = Timeline (
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 11
+  | l1 > l2 && r1 == r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p1
+      , f e1 (Event (mkInterval l1 r1) p2)
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+    )
+  | otherwise = error "One or multiple timelines do not satisfy timeline properties."
+
+-- | Variant with converting from relative to absolute directly.
+withReference2
+  :: (Ord a, Ord r, Num r, Coercible a r)
+  => a
+  -> Timeline a p  -- ^ Timeline in absolute time.
+  -> Timeline r p  -- ^ Timeline in relative time.
+  -> Timeline a p  -- ^ Timeline in absolute time.
+withReference2 _ (Timeline []) _ = empty
+withReference2 _ _ (Timeline []) = empty
+withReference2
+  start
+  t1@(Timeline ((Event (Interval (left1, right1)) p1):xs))
+  t2@(Timeline ((Event (Interval (left2, right2)) p2):ys))
+  -- 5
+  --
+  | l1 > r2 = withReference2 start t1 (Timeline ys)
+
+  -- 6
+  | r1 < l2 = withReference2 start (Timeline xs) t2
+
+  -- 1
+  --  xxx
+  -- yyyyy
+  | l1 > l2 && r1 < r2
+    = Timeline (
+      Event (mkInterval (coerce l1) (coerce r1)) p2
+      : 
+      getTimeline (withReference2 start (Timeline xs) (Timeline (Event (mkInterval (r1 - coerce start) right2) p2 : ys)))
+    )
+
+  -- 2
+  -- xxxxx
+  --  yyy
+  | l1 < l2 && r1 > r2
+    = Timeline (
+      Event (mkInterval (coerce l2) (coerce r2)) p2
+      :
+      getTimeline (withReference2 start (Timeline (Event (mkInterval (coerce (r1 - r2)) right1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 3
+  -- xxx
+  -- yy
+  | l1 == l2 && r1 > r2
+    = Timeline (
+      Event (mkInterval (coerce l2) (coerce r2)) p2 
+      :
+      getTimeline (withReference2 start (Timeline (Event (mkInterval (coerce r2) (coerce r1)) p1 : xs)) (Timeline ys))
+    )
+  
+  -- 4
+  -- xxx
+  --  yy
+  | l1 < l2 && r1 == r2
+    = Timeline (
+      Event (mkInterval (coerce l2) (coerce r2)) p2
+      :
+      getTimeline (withReference2 start (Timeline xs) (Timeline ys))
+    )
+
+  -- 7
+  -- xxx
+  -- yyy
+  | l1 == l2 && r1 == r2
+    = Timeline (
+      Event (mkInterval (coerce l1) (coerce r1)) p2
+      :
+      getTimeline (withReference2 start (Timeline xs) (Timeline ys))
+    )
+
+  -- 9
+  -- xxx
+  --  yyy
+  | l1 < l2 && r1 < r2
+    = Timeline (
+      Event (mkInterval (coerce l2) (coerce r1)) p2
+      :
+      getTimeline (withReference2 start (Timeline xs) (Timeline (Event (mkInterval (r1 - coerce start) right2) p2 : ys)))
+    )
+  
+  -- 8
+  --  xxx
+  -- yyy
+  | l1 > l2 && r1 > r2
+    = Timeline (
+      Event (mkInterval (coerce l1) (coerce r2)) p2
+      :
+      getTimeline (withReference2 start (Timeline (Event (mkInterval (coerce (r1 - r2)) right1) p1 : xs)) (Timeline ys))
+    )
+  
+  -- 10
+  -- xxx
+  -- yyyy
+  | l1 == l2 && r1 < r2
+    = Timeline (
+      Event (mkInterval (coerce l2) (coerce r1)) p2
+      :
+      getTimeline (withReference2 start (Timeline xs) (Timeline (Event (mkInterval (r1 - coerce start) right2) p2 : ys)))
+    )
+  
+  -- 11
+  --  xxx
+  -- yyyy
+  | l1 > l2 && r1 == r2
+    = Timeline (
+      Event (mkInterval (coerce l1) (coerce r1)) p2
+      :
+      getTimeline (withReference2 start (Timeline xs) (Timeline ys))
+    )
+  | otherwise = error "One or multiple timelines do not satisfy timeline properties."
+  where
+    l1 = 0 + coerce left1
+    r1 = 0 + coerce right1
+    l2 = left2 + coerce start
+    r2 = right2 + coerce start
+
+
+--timeFormat = "%H:%M:%S"
+--parseTime' = parseTimeOrError True defaultTimeLocale timeFormat
+--
+--absTime1 = parseTime' "19:00:00" :: UTCTime
+--absTime2 = parseTime' "19:10:00" :: UTCTime
+--absTime3 = parseTime' "19:15:00" :: UTCTime
+--absTime4 = parseTime' "19:25:00" :: UTCTime
+--relTime1 = 60  :: NominalDiffTime
+--relTime2 = 120 :: NominalDiffTime
+--
+--absInterval1 = mkInterval absTime1 absTime2
+--absInterval2 = mkInterval absTime3 absTime4
+--relInterval1 = mkInterval relTime1 relTime2
+--
+--absEvent1 = Event absInterval1 "absEvent1"
+--absEvent2 = Event absInterval2 "absEvent2"
+--relEvent1 = Event relInterval1 "relEvent1"
+--
+--addTime :: UTCTime -> NominalDiffTime -> UTCTime
+--addTime a r = addUTCTime r a
+--
+--mergeP :: String -> String -> String
+--mergeP = (++)
+--
+--absTimeline = unsafeFromList [absEvent1, absEvent2]
+--
+--test1 = insertRelativeEvent addTime mergeP relEvent1 absTimeline

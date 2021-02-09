@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 -----------------------------------------------------------------------------
 -- |
@@ -11,7 +12,8 @@ module Data.Timeline.Naive where
 
 import           Data.Coerce
 import           Prelude                   hiding (drop, dropWhile, filter,
-                                            null, subtract, take, takeWhile, reverse)
+                                            null, reverse, subtract, take,
+                                            takeWhile)
 import qualified Prelude
 
 import           Data.Foldable             (asum)
@@ -44,7 +46,7 @@ import           GHC.Base                  (join)
 -- > not (haveConflicts (toList t))
 newtype Timeline t p = Timeline
   { getTimeline :: [Event t p] -- ^ Sorted list of intervals.
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Functor)
 
 instance Ord t => Semigroup (Timeline t p) where
   (<>) = union (\_old new -> new)
@@ -891,14 +893,14 @@ insertRelativeEvent ft fp event@(Event (Interval (l, r)) p) (Timeline (x:xs))
     (timelineStart, tmpEnd) = getInterval $ interval x
     absLeft  = ft timelineStart l
     absRight = ft timelineStart r
-    
-absoluteToRelativeTo 
+
+absoluteToRelativeTo
   :: (Ord a, Ord r, Num r, Coercible a r)
   => r
   -> Timeline a p
   -> Timeline r (Interval a)
-absoluteToRelativeTo _ (Timeline []) = empty  
-absoluteToRelativeTo start (Timeline ((Event i@(Interval (l, r)) _) : xs)) 
+absoluteToRelativeTo _ (Timeline []) = empty
+absoluteToRelativeTo start (Timeline ((Event i@(Interval (l, r)) _) : xs))
   = Timeline (Event (mkInterval start eventEnd) i : toList (absoluteToRelativeTo eventEnd (Timeline xs)))
   where
     eventEnd = start + coerce r - coerce l
@@ -915,9 +917,9 @@ eventToAbsFrom start (Event (Interval (l2, r2)) p)
     newAbsL = coerce (coerce start + l2)
     newAbsR = coerce (coerce start + r2)
 
--- | Helper function for `withReference`. 
+-- | Helper function for `withReference`.
 -- Removes those intervals, which will not have payloads from the 2nd input timeline.
--- (this is the difference from the normal `intersectionWith` below) 
+-- (this is the difference from the normal `intersectionWith` below)
 intersectWith'
   :: Ord t
   => (Event t p -> Event t p' -> Event t p')
@@ -1120,7 +1122,7 @@ withReference2
   | l1 > l2 && r1 < r2
     = Timeline (
       Event (mkInterval (coerce l1) (coerce r1)) p2
-      : 
+      :
       getTimeline (withReference2 start (Timeline xs) (Timeline (Event (mkInterval (r1 - coerce start) right2) p2 : ys)))
     )
 
@@ -1139,11 +1141,11 @@ withReference2
   -- yy
   | l1 == l2 && r1 > r2
     = Timeline (
-      Event (mkInterval (coerce l2) (coerce r2)) p2 
+      Event (mkInterval (coerce l2) (coerce r2)) p2
       :
       getTimeline (withReference2 start (Timeline (Event (mkInterval (coerce r2) (coerce r1)) p1 : xs)) (Timeline ys))
     )
-  
+
   -- 4
   -- xxx
   --  yy
@@ -1173,7 +1175,7 @@ withReference2
       :
       getTimeline (withReference2 start (Timeline xs) (Timeline (Event (mkInterval (r1 - coerce start) right2) p2 : ys)))
     )
-  
+
   -- 8
   --  xxx
   -- yyy
@@ -1183,7 +1185,7 @@ withReference2
       :
       getTimeline (withReference2 start (Timeline (Event (mkInterval (coerce (r1 - r2)) right1) p1 : xs)) (Timeline ys))
     )
-  
+
   -- 10
   -- xxx
   -- yyyy
@@ -1193,7 +1195,7 @@ withReference2
       :
       getTimeline (withReference2 start (Timeline xs) (Timeline (Event (mkInterval (r1 - coerce start) right2) p2 : ys)))
     )
-  
+
   -- 11
   --  xxx
   -- yyyy
@@ -1238,3 +1240,115 @@ withReference2
 --absTimeline = unsafeFromList [absEvent1, absEvent2]
 --
 --test1 = insertRelativeEvent addTime mergeP relEvent1 absTimeline
+
+-- | Update events using a reference timeline schedule.
+-- All of the events from the second timeline are overlayed
+-- over events from the first timeline (reference).
+-- Gaps from both the original timeline and the reference timeline are preserved.
+--
+-- See 'withReference'_' for a specialized version.
+withReference'
+  :: (Num rel, Ord rel)
+  => (abs -> abs -> rel)
+  -> (abs -> rel -> abs)
+  -> (a -> b -> c)
+  -> Timeline abs a
+  -> Timeline rel b
+  -> Timeline abs c
+withReference' diff add f = unsafeIntersectionWithEvent combine . shrink diff
+  where
+    combine i x y = Event (Interval (from, to)) (f a b)
+      where
+        from = add f3 (f1 - f2)
+        to = add from (t1 - f1)
+        Interval (f1, t1) = i
+        Event (Interval (f2, _)) (Event (Interval (f3, _)) a) = x
+        Event _ b = y
+
+-- | Update events using a reference timeline schedule.
+--
+-- All of the events from the second timeline are overlayed
+-- over events from the first timeline (reference):
+--
+-- >>> t1 = "    xxxx  yyyy    zzzz " :: PictoralTimeline
+-- >>> t2 = "123456789ABCDEF" :: PictoralTimeline
+-- >>> t1
+--     xxxx  yyyy    zzzz
+-- >>> T.withReference'_ t1 t2
+--     1234  5678    9ABC
+--
+-- Gaps from both the original timeline and the reference timeline are preserved:
+--
+-- >>> t1 = "    xxxx  yyyy    zzzz " :: PictoralTimeline
+-- >>> t2 = "12 45  89A CDEF" :: PictoralTimeline
+-- >>> t1
+--     xxxx  yyyy    zzzz
+-- >>> T.withReference'_ t1 t2
+--     12 4  5  8    9A C
+withReference'_
+  :: (Num t, Ord t)
+  => Timeline t a
+  -> Timeline t b
+  -> Timeline t b
+withReference'_ = withReference' (-) (+) (flip const)
+
+-- | Shrink an (absolute) timeline by removing all the gaps between events.
+-- The result is a (relative) timeline with original (absolute) events.
+--
+-- >>> payload <$> shrink (-) "  xxx yyyy   zzz" :: PictoralTimeline
+-- xxxyyyyzzz
+shrink
+  :: (Num rel)
+  => (abs -> abs -> rel)
+  -> Timeline abs a
+  -> Timeline rel (Event abs a)
+shrink diff = unsafeFromList . shrink' . toList
+  where
+    shrink' events = zipWith Event intervals events
+      where
+        intervals = scanl1 step (map (toRel . interval) events)
+        step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
+        toRel (Interval (from, to)) = Interval (0, to `diff` from)
+
+-- | Intersection of two timelines with a custom combining function
+-- that takes into account intersection interval and both source events
+-- and can construct a new event with potentially different type of time.
+--
+-- This function is "unsafe" because it assumes that combining function
+-- maps its first argument (interval of the intersection) monotonically.
+--
+-- This allows intersection to be fast (linear) and lazy.
+--
+-- >>> t1 = "xxxx yyyy" :: PictoralTimeline
+-- >>> t2 = "1 111 11"  :: PictoralTimeline
+-- >>> t1
+-- xxxx yyyy
+-- >>> t2
+-- 1 111 11
+-- >>> unsafeIntersectionWithEvent (\i e _ -> e { interval = i }) t1 t2
+-- x xx  yy
+unsafeIntersectionWithEvent
+  :: (Ord t)
+  => (Interval t -> Event t a -> Event t b -> Event t' c)
+  -> Timeline t a
+  -> Timeline t b
+  -> Timeline t' c
+unsafeIntersectionWithEvent f as bs = unsafeFromList (go (toList as) (toList bs))
+  where
+    go [] _ = []
+    go _ [] = []
+    go (x:xs) (y:ys)
+      | r1 < l2   = go xs (y:ys)
+      | r2 < l1   = go (x:xs) ys
+      | r1 <= r2  = z : go xs (y:ys)
+      | r2 <= r1  = z : go (x:xs) ys
+      where
+        Event (Interval (l1, r1)) a = x
+        Event (Interval (l2, r2)) b = y
+        i = mkInterval (max l1 l2) (min r1 r2)
+        z = f i x y
+
+duplicateEvents :: Timeline t a -> Timeline t (Event t a)
+duplicateEvents = unsafeFromList . map dup . toList
+  where
+    dup (Event i a) = Event i (Event i a)

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Data.Timeline.Event where
 
 import           Data.Timeline.Interval hiding (adjacent)
@@ -6,7 +7,7 @@ import qualified Data.Timeline.Interval as Interval
 data Event t p = Event {
   interval :: Interval t,
   payload  :: p
-} deriving (Show, Eq)
+} deriving (Show, Eq, Functor)
 
 -- | /O(1)/.
 --
@@ -15,16 +16,16 @@ fromTuple :: (Interval t, p) -> Event t p
 fromTuple (i, p) = Event i p
 
 -- |
--- 
+--
 -- prop> mergeWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 3 6) 'y') == [(Event (mkInterval 0 3) 'x'), (Event (mkInterval 3 6) 'y')]
 -- prop> mergeWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 1 4) 'y') == [(Event (mkInterval 0 1) 'x'), (Event (mkInterval 1 3) 'y'), (Event (mkInterval 3 4) 'y')]
 -- prop> mergeWith (\a b -> b) (Event (mkInterval 0 2) 'x') (Event (mkInterval 0 1) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'x')]
--- prop> mergeWith (\a b -> b) (Event (mkInterval 0 1) 'x') (Event (mkInterval 0 2) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'y')]  
-mergeWith 
+-- prop> mergeWith (\a b -> b) (Event (mkInterval 0 1) 'x') (Event (mkInterval 0 2) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'y')]
+mergeWith
   :: Ord t
-  => (p -> p -> p) 
-  -> Event t p 
-  -> Event t p 
+  => (p -> p -> p)
+  -> Event t p
+  -> Event t p
   -> [Event t p]
 mergeWith f x@(Event (Interval (x1, x2)) xp) y@(Event (Interval (y1, y2)) yp)
   -- xxx
@@ -67,7 +68,7 @@ mergeWith f x@(Event (Interval (x1, x2)) xp) y@(Event (Interval (y1, y2)) yp)
                          , Event (mkInterval y2 x2) xp
                          ]
   --  xxx
-  -- yyyyy 
+  -- yyyyy
   | x1 > y1 && x2 < y2 = [ Event (mkInterval y1 x1) yp
                          , Event (mkInterval x1 x2) (f xp yp)
                          , Event (mkInterval x2 y2) yp

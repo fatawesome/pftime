@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1bdd6f5b658847561a4681a4ee27100ac5e314770d55060c40a7cf0aa8ba2c5d
+-- hash: 881d0873a711b8a1a4cf599c4b2c357665c2d66f4322d3647e47d0e0f21504ed
 
 name:           pftime
 version:        0.1.0.0
@@ -33,11 +33,15 @@ custom-setup
 
 library
   exposed-modules:
-      Event
-      Interval
-      OverlappingTimeline
-      PictoralTimeline
-      Timeline
+      Data.Timeline.Class
+      Data.Timeline.Event
+      Data.Timeline.Interval
+      Data.Timeline.Lazy
+      Data.Timeline.Naive
+      Data.Timeline.Overlapping
+      Data.Timeline.Pictoral
+      Data.Timeline.Strict
+      Data.Timeline.Time
   other-modules:
       Paths_pftime
   hs-source-dirs:
@@ -48,6 +52,8 @@ library
     , extra >=1.7.7
     , hspec
     , split
+    , time
+    , vector
   default-language: Haskell2010
 
 executable pftime-exe
@@ -63,15 +69,17 @@ executable pftime-exe
     , extra >=1.7.7
     , hspec
     , split
+    , time
+    , vector
   default-language: Haskell2010
 
 test-suite doctests
   type: exitcode-stdio-1.0
   main-is: doctests.hs
   other-modules:
-      IntervalSpec
+      Data.Timeline.Interval.Spec
+      Data.Timeline.NaiveSpec
       Main
-      TimelineSpec
       Paths_pftime
   hs-source-dirs:
       test
@@ -85,14 +93,16 @@ test-suite doctests
     , pftime
     , split
     , template-haskell
+    , time
+    , vector
   default-language: Haskell2010
 
 test-suite pftime-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      IntervalSpec
-      TimelineSpec
+      Data.Timeline.Interval.Spec
+      Data.Timeline.NaiveSpec
       Paths_pftime
   hs-source-dirs:
       test
@@ -104,4 +114,6 @@ test-suite pftime-test
     , hspec
     , pftime
     , split
+    , time
+    , vector
   default-language: Haskell2010

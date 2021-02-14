@@ -1,5 +1,5 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
-
 -----------------------------------------------------------------------------
 -- |
 -- Module : Timeline
@@ -8,25 +8,30 @@
 --
 -- The @'Timeline' t p@ represents the event set where 't' stands for time and 'p' for payload.
 -----------------------------------------------------------------------------
-module Timeline where
+module Data.Timeline.Naive where
 
-import           Event
-import           Prelude             hiding (null, subtract, take, takeWhile, filter, drop, dropWhile)
-import qualified Prelude (drop)
+import           Prelude                   hiding (drop, dropWhile, filter,
+                                            null, reverse, subtract, take,
+                                            takeWhile)
+import qualified Prelude
 
-import           Data.Foldable       (asum)
-import           Data.Maybe          (mapMaybe)
-import           Interval
-import           OverlappingTimeline
+import           Data.Foldable             (asum)
+import           Data.Maybe                (mapMaybe)
+
+import           Data.Timeline.Event       as Event
+import           Data.Timeline.Interval    hiding (intersect, shiftWith)
+import qualified Data.Timeline.Interval    as Interval
+import           Data.Timeline.Overlapping as Overlapping
+import           GHC.Base                  (join)
+
 
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Prelude hiding (take, takeWhile, subtract, null, filter, drop, dropWhile)
--- >>> import qualified Prelude (drop)
--- >>> import PictoralTimeline
+-- >>> import Data.Timeline.Pictoral
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
--- >>> let overlapping = OverlappingTimeline.fromList [event_0_2_a, event_1_3_b]
+-- >>> let overlapping = Overlapping.fromList [event_0_2_a, event_1_3_b]
 -- $setup
 
 -----------------------------------------------------------------------------
@@ -38,7 +43,7 @@ import           OverlappingTimeline
 -- > not (haveConflicts (toList t))
 newtype Timeline t p = Timeline
   { getTimeline :: [Event t p] -- ^ Sorted list of intervals.
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Functor)
 
 instance Ord t => Semigroup (Timeline t p) where
   (<>) = union (\_old new -> new)
@@ -93,6 +98,7 @@ singleton event = Timeline [event]
 -----------------------------------------------------------------------------
 -- * Insertion
 
+-- TODO: refactor in terms of `intersectIntervals` from Interval.hs
 -- | \( O(n) \). Safely insert an element into the Timeline
 --
 -- Case 1:
@@ -174,7 +180,7 @@ insert
     = Timeline (
         [ Event (Interval (yleft, xleft)) pY
         , Event (Interval (xleft, yright)) (f pX pY)
-        , Event (Interval (yright, xright)) pX
+        , Event (Interval (yright, xright)) pX -- TODO: that is a bug. This interval should be checked for overlaps with the next one.
         ] <> xs
       )
 
@@ -201,7 +207,7 @@ insert
     = Timeline (
         [ Event (Interval (xleft, yleft)) pX
         , Event (Interval (yleft, xright)) (f pX pY)
-        , Event (Interval (xright, yright)) pY
+        , Event (Interval (xright, yright)) pY -- TODO: that is a bug. This interval should be checked for overlaps with the next one.
         ] <> xs
       )
 
@@ -211,7 +217,7 @@ insert
   | yleft == xleft && yright > xright
     = Timeline (
         [ Event (Interval (yleft, xright)) (f pX pY)
-        , Event (Interval (xright, yright)) pY
+        , Event (Interval (xright, yright)) pY -- TODO: that is a bug. This interval should be checked for overlaps with the next one.
         ] <> xs
       )
 
@@ -318,6 +324,86 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
   where
     diff = subtract ix i
     insertPayload is p = map (`Event` p) is
+
+
+-- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
+--
+-- >>> let t = "xxx" :: PictoralTimeline
+-- >>> drop 0 t
+-- xxx
+--
+-- >>> let t = "xxx yyy" :: PictoralTimeline
+-- >>> drop 3 t == empty
+-- True
+--
+-- >>> let t = "xxx yyy" :: PictoralTimeline
+-- >>> drop 2 t == empty
+-- True
+--
+-- >>> let t = "xxx yyy zzz" :: PictoralTimeline
+-- >>> drop 1 t
+--     yyy zzz
+drop
+  :: Ord t
+  => Int
+  -> Timeline t p
+  -> Timeline t p
+drop _ (Timeline []) = empty
+drop n timeline@(Timeline (_:xs))
+  | n > 0     = drop (n-1) (Timeline xs)
+  | otherwise = timeline
+
+
+-- | Return suffix after dropping events which satisfy the predicate.
+--
+-- >>> let t = "yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+-- yyy
+--
+-- >>> let t = "x yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+--   yyy
+--
+-- >>> let t = "x x yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+--     yyy
+--
+-- >>> let t = "z xxx yyy" :: PictoralTimeline
+-- >>> dropWhile (\e -> payload e == 'x') t
+-- z xxx yyy
+dropWhile
+  :: Ord t
+  => (Event t p -> Bool)
+  -> Timeline t p
+  -> Timeline t p
+dropWhile _ (Timeline []) = empty
+dropWhile f t@(Timeline (x:xs))
+  | f x = Timeline (getTimeline (dropWhile f (Timeline xs)))
+  | otherwise = t
+
+-- | Drop everything until given point in time.
+--
+-- >>> let t = "xxx xxx xxx" :: PictoralTimeline
+-- >>> dropBefore 4 t
+--     xxx xxx
+--
+-- >>> let t = "xxx" :: PictoralTimeline
+-- >>> dropBefore 1 t
+--  xx
+--
+-- >>> let t = "  xxx" :: PictoralTimeline
+-- >>> dropBefore 1 t
+--   xxx
+dropBefore
+  :: Ord t
+  => t
+  -> Timeline t p
+  -> Timeline t p
+dropBefore _ (Timeline []) = empty
+dropBefore t timeline@(Timeline (Event (Interval (l, r)) p : xs))
+  | t <= l = timeline
+  | t >= r = dropBefore t (Timeline xs)
+  | otherwise = Timeline (Event (Interval (t, r)) p : xs )
 
 
 -- | Update timeline with event.
@@ -474,85 +560,6 @@ window i@(Interval (l, r)) (Timeline ((Event (Interval (lx, rx)) px) : xs))
 
   | otherwise = empty
 
--- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
---
--- >>> let t = "xxx" :: PictoralTimeline
--- >>> drop 0 t
--- xxx
---
--- >>> let t = "xxx yyy" :: PictoralTimeline
--- >>> drop 3 t == empty
--- True
---
--- >>> let t = "xxx yyy" :: PictoralTimeline
--- >>> drop 2 t == empty
--- True
---
--- >>> let t = "xxx yyy zzz" :: PictoralTimeline
--- >>> drop 1 t
---     yyy zzz
-drop
-  :: Ord t
-  => Int
-  -> Timeline t p
-  -> Timeline t p
-drop _ (Timeline []) = empty
-drop n timeline@(Timeline (_:xs))
-  | n > 0     = drop (n-1) (Timeline xs)
-  | otherwise = timeline
-
-
--- | Return suffix after dropping events which satisfy the predicate.
---
--- >>> let t = "yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
--- yyy
---
--- >>> let t = "x yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
---   yyy
---
--- >>> let t = "x x yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
---     yyy
---
--- >>> let t = "z xxx yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
--- z xxx yyy
-dropWhile
-  :: Ord t
-  => (Event t p -> Bool)
-  -> Timeline t p
-  -> Timeline t p
-dropWhile _ (Timeline []) = empty
-dropWhile f t@(Timeline (x:xs))
-  | f x = Timeline (getTimeline (dropWhile f (Timeline xs)))
-  | otherwise = t
-
--- | Drop everything until given point in time.
---
--- >>> let t = "xxx xxx xxx" :: PictoralTimeline
--- >>> dropBefore 4 t
---     xxx xxx
---
--- >>> let t = "xxx" :: PictoralTimeline
--- >>> dropBefore 1 t
---  xx
--- 
--- >>> let t = "  xxx" :: PictoralTimeline
--- >>> dropBefore 1 t
---   xxx  
-dropBefore
-  :: Ord t
-  => t
-  -> Timeline t p
-  -> Timeline t p
-dropBefore _ (Timeline []) = empty
-dropBefore t timeline@(Timeline (Event (Interval (l, r)) p : xs))
-  | t <= l = timeline
-  | t >= r = dropBefore t (Timeline xs)
-  | otherwise = Timeline (Event (Interval (t, r)) p : xs )
-
 -----------------------------------------------------------------------------
 -- * Combine
 
@@ -578,7 +585,7 @@ union
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
--- 
+--
 -- >>> unionBy (\a b -> b) "xxx" "" :: PictoralTimeline
 -- xxx
 --
@@ -593,42 +600,76 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 --
 -- >>> unionBy (\a b -> b) " xxx" "yyy" :: PictoralTimeline
 -- yyyx
--- 
+--
 -- >>> unionBy (\a b -> b) "xx" "   yy" :: PictoralTimeline
 -- xx yy
--- 
+--
 -- >>> unionBy (\a b -> b) " x y z" "x y z" :: PictoralTimeline
 -- xxyyzz
 --
--- >>> unionBy (\a b -> b) "xxx yyy zz" " xxxx  a  bb" :: PictoralTimeline
--- xxxxyyyazzbb
+-- >>> unionBy (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
+-- xaxbx
+--
+-- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
+-- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xxaaaybbbzccc
+--
+-- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
+-- >>> let t2 = " aa bb cc" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xaaxbbxcc
+--
+-- >>> let t1 = " aa bb cc" :: PictoralTimeline
+-- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
+-- >>> unionBy (\a b -> b) t1 t2
+-- xxxxxxxxc
 unionBy
   :: Ord t
   => (p -> p -> p)
   -> Timeline t p
   -> Timeline t p
   -> Timeline t p
-unionBy f x y = unionBy' f x y empty   
-    
-unionBy'
+unionBy f x y = _unionBy f x y empty
+
+-- @'unionBy' helper function.
+-- Uses reversed accumulator timeline to allow \( O(1) \) access to the last accumulated element.
+-- This way it is possible to achieve \( O(n+m) \) total @'unionBy' complexity.
+_unionBy
   :: Ord t
   => (p -> p -> p)
   -> Timeline t p  -- ^ timeline 1
   -> Timeline t p  -- ^ timeline 2
-  -> Timeline t p  -- ^ accumulator timeline
+  -> Timeline t p  -- ^ reversed accumulated timeline
   -> Timeline t p  -- ^ result
-unionBy' _ (Timeline [])     (Timeline [])     (Timeline []) = empty
-unionBy' _ (Timeline [])     (Timeline [])     acc           = acc 
-unionBy' f (Timeline (x:xs)) (Timeline [])     acc           = unionBy' f (Timeline xs) empty (insert f x acc)
-unionBy' f (Timeline [])     (Timeline (y:ys)) acc           = unionBy' f empty (Timeline ys) (insert f y acc)
-unionBy' 
-  f 
-  t1@(Timeline (x@(Event (Interval (xi1, xi2)) _) : xs)) 
-  t2@(Timeline (y@(Event (Interval (yi1, yi2)) _) : ys)) 
-  acc
-  | xi2 <= yi1 = unionBy' f (Timeline xs) t2 (insert f x acc)
-  | xi1 >= yi2 = unionBy' f t1 (Timeline ys) (insert f y acc)
-  | otherwise = unionBy' f (Timeline xs) (Timeline ys) (Timeline $ getTimeline acc ++ mergeWith f x y)   
+_unionBy _ (Timeline []) (Timeline []) (Timeline []) = empty
+_unionBy _ (Timeline []) (Timeline []) acc           = reverse acc
+
+_unionBy _ x (Timeline []) (Timeline []) = x
+_unionBy _ (Timeline []) y (Timeline []) = y
+
+_unionBy f (Timeline (x:xs)) (Timeline []) acc
+  = _unionBy f (Timeline xs) empty (_reversedInsert (flip f) x acc)
+
+_unionBy f (Timeline []) (Timeline (y:ys)) acc
+  = _unionBy f empty (Timeline ys) (_reversedInsert f y acc)
+
+_unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) (Timeline [])
+  | xi <= yi  = _unionBy f (Timeline xs) t2            (singleton x)
+  | otherwise = _unionBy f t1            (Timeline ys) (singleton y)
+
+_unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) acc
+  | xi < yi = _unionBy f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
+  | otherwise = _unionBy f t1 (Timeline ys) (_reversedInsert f y acc)
+
+_reversedInsert
+  :: Ord t
+  => (p -> p -> p)
+  -> Event t p
+  -> Timeline t p
+  -> Timeline t p
+_reversedInsert _    el (Timeline [])     = singleton el
+_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (mergeWith func z el) ++ zs
 
 
 -- TODO: optimization
@@ -638,13 +679,13 @@ unionBy'
 
 -- | Find intersection of the first timeline with the second.
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `Timeline.intersect` (mkPictoralTimeline " yyy")
+-- >>> toString $ (mkPictoralTimeline "xxx") `intersect` (mkPictoralTimeline " yyy")
 -- " xx"
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `Timeline.intersect` (mkPictoralTimeline "    yyy")
+-- >>> toString $ (mkPictoralTimeline "xxx") `intersect` (mkPictoralTimeline "    yyy")
 -- ""
 --
--- >>> toString $ (mkPictoralTimeline "xxx yyy") `Timeline.intersect` (mkPictoralTimeline "  zzz")
+-- >>> toString $ (mkPictoralTimeline "xxx yyy") `intersect` (mkPictoralTimeline "  zzz")
 -- "  x y"
 intersect
   :: Ord t
@@ -658,7 +699,96 @@ intersect (Timeline xs) (Timeline ys)
       = case findIntersectionFlip (map interval t) i of
         Just x  -> Just $ Event x p
         Nothing -> Nothing
-    findIntersectionFlip x y = findIntersection y x 
+    findIntersectionFlip x y = findIntersection y x
+
+intersectWith
+  :: Ord t
+  => (Event t p -> Event t p -> Event t p)
+  -> Timeline t p
+  -> Timeline t p
+  -> Timeline t p
+intersectWith _ (Timeline []) _ = empty
+intersectWith _ _ (Timeline []) = empty
+intersectWith
+  f
+  t1@(Timeline (e1@(Event (Interval (l1, r1)) p1):xs))
+  t2@(Timeline (e2@(Event (Interval (l2, r2)) p2):ys))
+
+  -- 5
+  | l1 > r2 = Timeline (e2 : getTimeline (intersectWith f t1 (Timeline ys)))
+
+  -- 6
+  | r1 < l2 = Timeline (e1 : getTimeline (intersectWith f (Timeline xs) t2))
+
+  -- 1
+  | l1 > l2 && r1 < r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p2
+      , f e1 (Event (mkInterval l1 r1) p2)
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 2
+  | l1 < l2 && r1 > r2
+    = Timeline (
+      [ Event (mkInterval l1 l2) p1
+      , f (Event (mkInterval l2 r2) p1) e2
+      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 3
+  | l1 == l2 && r1 > r2
+    = Timeline (
+      f (Event (mkInterval l1 r2) p1) e2
+      :
+      getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 4
+  | l1 < l2 && r1 == r2
+    = Timeline (
+      [ Event (mkInterval l1 l2) p1
+      , f (Event (mkInterval l2 r2) p1) e2
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+    )
+
+  -- 7
+  | l1 == l2 && r1 == r2
+    = Timeline (f e1 e2 : getTimeline (intersectWith f (Timeline xs) (Timeline ys)))
+
+  -- 9
+  | l1 < l2 && r1 < r2
+    = Timeline (
+      [ Event (mkInterval l1 l2) p1
+      , f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 8
+  | l1 > l2 && r1 > r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p2
+      , f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
+      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+    )
+
+  -- 10
+  | l1 == l2 && r1 < r2
+    = Timeline (
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+    )
+
+  -- 11
+  | l1 > l2 && r1 == r2
+    = Timeline (
+      [ Event (mkInterval l2 l1) p1
+      , f e1 (Event (mkInterval l1 r1) p2)
+      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+    )
+  | otherwise = error "One or multiple timelines do not satisfy timeline properties."
+
 
 -- TODO: optimization
 -- Number of iterations for one interval can be reduced given the fact that
@@ -688,6 +818,54 @@ difference x (Timeline []) = x
 difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
 
 -----------------------------------------------------------------------------
+-- * Transformations
+
+-- | Reverse the timeline.
+reverse :: Timeline t p -> Timeline t p
+reverse (Timeline xs) = Timeline (Prelude.reverse xs)
+
+
+-- | Shift all events in time by `n`
+--
+-- >>> shiftWith (+) 1 "x y z" :: PictoralTimeline
+--  x y z
+--
+-- >>> shiftWith (+) 2 "x y z" :: PictoralTimeline
+--   x y z
+--
+-- >>> shiftWith (+) (-1) "  x y z" :: PictoralTimeline
+--  x y z
+shiftWith
+  :: Ord t
+  => (t -> t -> t)
+  -> t
+  -> Timeline t p
+  -> Timeline t p
+shiftWith f n (Timeline xs) = unsafeFromList $ map (shiftWith' f) xs
+  where
+    shiftWith' func (Event i p) = Event (Interval.shiftWith func n i) p
+
+-- | Monadic bind.
+--
+-- (>>=) :: Timeline t a -> (a -> Timeline t b) -> Timeline t b
+--
+-- timeline >>= f = flatMapWith const timeline (\event -> f $ payload event)
+--
+-- >>> f a b = b
+-- >>> g (Event i p) = singleton (Event i 'a')
+-- >>> t = "xxx yyy" :: PictoralTimeline
+-- >>> flatMapWith f t g
+-- aaa aaa
+flatMapWith
+  :: Ord t
+  => (b -> b -> b)
+  -> Timeline t a
+  -> (Event t a -> Timeline t b)
+  -> Timeline t b
+flatMapWith _ (Timeline []) _ = empty
+flatMapWith f (Timeline xs) g = fromListWith f $ join $ map getTimeline (fmap g xs)
+
+-----------------------------------------------------------------------------
 -- * Conversion
 
 -- | Convert Timeline to list of Intervals
@@ -703,9 +881,129 @@ isValid = isAscending . map interval . toList
 -----------------------------------------------------------------------------
 -- * Helpers
 
+-- | General map function.
+-- Basically, an interface for monotonic functions.
+_map
+  :: (Event t p -> Event t p)
+  -> Timeline t p
+  -> Timeline t p
+_map f (Timeline xs) = Timeline (map f xs)
+
 findIntersection
   :: Ord t
   => Interval t         -- ^ interval to find intersection with.
   -> [Interval t]       -- ^ intervals in which to search.
   -> Maybe (Interval t) -- ^ intersection or Nothing.
 findIntersection i xs = asum (map (Interval.intersect i) xs)
+
+-- | Update events using a reference timeline schedule.
+-- All of the events from the second timeline are overlayed
+-- over events from the first timeline (reference).
+-- Gaps from both the original timeline and the reference timeline are preserved.
+--
+-- See 'withReference_' for a specialized version.
+withReference
+  :: (Num rel, Ord rel)
+  => (abs -> abs -> rel)
+  -> (abs -> rel -> abs)
+  -> (a -> b -> c)
+  -> Timeline abs a
+  -> Timeline rel b
+  -> Timeline abs c
+withReference diff add f = unsafeIntersectionWithEvent combine . shrink diff
+  where
+    combine i x y = Event (Interval (from, to)) (f a b)
+      where
+        from = add f3 (f1 - f2)
+        to = add f3 (t1 - f2)
+        Interval (f1, t1) = i
+        Event (Interval (f2, _)) (Event (Interval (f3, _)) a) = x
+        Event _ b = y
+
+-- | Update events using a reference timeline schedule.
+--
+-- All of the events from the second timeline are overlayed
+-- over events from the first timeline (reference):
+--
+-- >>> t1 = "    xxxx  yyyy    zzzz " :: PictoralTimeline
+-- >>> t2 = "123456789ABCDEF" :: PictoralTimeline
+-- >>> t1
+--     xxxx  yyyy    zzzz
+-- >>> withReference_ t1 t2
+--     1234  5678    9ABC
+--
+-- Gaps from both the original timeline and the reference timeline are preserved:
+--
+-- >>> t1 = "    xxxx  yyyy    zzzz " :: PictoralTimeline
+-- >>> t2 = "12 45  89A CDEF" :: PictoralTimeline
+-- >>> t1
+--     xxxx  yyyy    zzzz
+-- >>> withReference_ t1 t2
+--     12 4  5  8    9A C
+withReference_
+  :: (Num t, Ord t)
+  => Timeline t a
+  -> Timeline t b
+  -> Timeline t b
+withReference_ = withReference (-) (+) (flip const)
+
+-- | Shrink an (absolute) timeline by removing all the gaps between events.
+-- The result is a (relative) timeline with original (absolute) events.
+--
+-- >>> payload <$> shrink (-) "  xxx yyyy   zzz" :: PictoralTimeline
+-- xxxyyyyzzz
+shrink
+  :: (Num rel)
+  => (abs -> abs -> rel)
+  -> Timeline abs a
+  -> Timeline rel (Event abs a)
+shrink diff = unsafeFromList . shrink' . toList
+  where
+    shrink' events = zipWith Event intervals events
+      where
+        intervals = scanl1 step (map (toRel . interval) events)
+        step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
+        toRel (Interval (from, to)) = Interval (0, to `diff` from)
+
+-- | Intersection of two timelines with a custom combining function
+-- that takes into account intersection interval and both source events
+-- and can construct a new event with potentially different type of time.
+--
+-- This function is "unsafe" because it assumes that combining function
+-- maps its first argument (interval of the intersection) monotonically.
+--
+-- This allows intersection to be fast (linear) and lazy.
+--
+-- >>> t1 = "xxxx yyyy" :: PictoralTimeline
+-- >>> t2 = "1 111 11"  :: PictoralTimeline
+-- >>> t1
+-- xxxx yyyy
+-- >>> t2
+-- 1 111 11
+-- >>> unsafeIntersectionWithEvent (\i e _ -> e { interval = i }) t1 t2
+-- x xx  yy
+unsafeIntersectionWithEvent
+  :: (Ord t)
+  => (Interval t -> Event t a -> Event t b -> Event t' c)
+  -> Timeline t a
+  -> Timeline t b
+  -> Timeline t' c
+unsafeIntersectionWithEvent f as bs = unsafeFromList (go (toList as) (toList bs))
+  where
+    go [] _ = []
+    go _ [] = []
+    go (x:xs) (y:ys)
+      | r1 < l2   = go xs (y:ys)
+      | r2 < l1   = go (x:xs) ys
+      | r1 <= r2  = z : go xs (y:ys)
+      | otherwise = z : go (x:xs) ys
+      where
+        Event (Interval (l1, r1)) _ = x
+        Event (Interval (l2, r2)) _ = y
+        i = mkInterval (max l1 l2) (min r1 r2)
+        z = f i x y
+
+duplicateEvents :: Timeline t a -> Timeline t (Event t a)
+duplicateEvents = unsafeFromList . map dup . toList
+  where
+    dup (Event i a) = Event i (Event i a)

@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeApplications #-}
 
-module TimelineSpec where
+module Data.Timeline.NaiveSpec where
 
-import           Interval
-import           Timeline
+--import           Data.Interval
+--import           Data.Timeline
 
 import           Test.Hspec
 import           Test.QuickCheck

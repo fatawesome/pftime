@@ -10,13 +10,13 @@
 -- > mkPictoralTimeline "XXX YYY ZZZ"
 -- Timeline [Event (Interval (0,3)) 'X'}, Event (Interval (4,7)) 'Y'}, Event (Interval (8,11)) 'Z'}]
 -----------------------------------------------------------------------------
+module Data.Timeline.Pictoral where
 
-module PictoralTimeline where
+import           Data.String            (IsString (..))
 
-import           Data.String (IsString (..))
-import           Event
-import           Interval
-import           Timeline hiding (filter)
+import           Data.Timeline.Event    as Event
+import           Data.Timeline.Interval
+import           Data.Timeline.Naive    hiding (filter)
 
 -----------------------------------------------------------------------------
 -- * Pictoral timeline type

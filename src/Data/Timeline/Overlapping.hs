@@ -1,7 +1,8 @@
-module OverlappingTimeline where
+module Data.Timeline.Overlapping where
 
 import           Data.List           (sortOn)
-import           Event
+
+import           Data.Timeline.Event
 
 -- | OverlappingTimeline can have overlapping intervals.
 newtype OverlappingTimeline t p =
@@ -10,10 +11,10 @@ newtype OverlappingTimeline t p =
     }
   deriving (Show)
 
-merge 
-  :: Ord t 
-  => OverlappingTimeline t p 
-  -> OverlappingTimeline t p 
+merge
+  :: Ord t
+  => OverlappingTimeline t p
+  -> OverlappingTimeline t p
   -> OverlappingTimeline t p
 merge (OverlappingTimeline xs) (OverlappingTimeline ys) = OverlappingTimeline (merge' xs ys)
   where
@@ -23,8 +24,8 @@ merge (OverlappingTimeline xs) (OverlappingTimeline ys) = OverlappingTimeline (m
       | i1 < i2 = e1 : merge' xs' (e2 : ys')
       | otherwise = e2 : merge' (e1 : xs') ys'
 
-fromList 
+fromList
   :: Ord t
   => [Event t p]
   -> OverlappingTimeline t p
-fromList xs = OverlappingTimeline (sortOn Event.interval xs)
+fromList xs = OverlappingTimeline (sortOn interval xs)

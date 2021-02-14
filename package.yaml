@@ -31,6 +31,8 @@ dependencies:
 - hspec
 - split
 - extra >= 1.7.7
+- vector
+- time
 
 library:
   source-dirs: src

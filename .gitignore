@@ -13,3 +13,5 @@ dist-newstyle
 
 # MacOS system stuff
 .DS_Store
+
+out/

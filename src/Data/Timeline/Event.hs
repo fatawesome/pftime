@@ -15,6 +15,10 @@ data Event t p = Event {
 fromTuple :: (Interval t, p) -> Event t p
 fromTuple (i, p) = Event i p
 
+-- | Convert Event to tuple.
+toTuple :: Event t p -> (t, t, p)
+toTuple (Event (Interval (f, t)) p) = (f, t, p)
+
 -- |
 --
 -- prop> mergeWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 3 6) 'y') == [(Event (mkInterval 0 3) 'x'), (Event (mkInterval 3 6) 'y')]

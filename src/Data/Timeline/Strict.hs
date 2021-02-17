@@ -10,12 +10,13 @@ import           Data.Timeline.Interval
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral ()
 import           Data.Tuple.Extra
-import qualified Data.Vector            as V
+import           Data.Vector            (Vector)
+import qualified Data.Vector            as Vector
 
 data Timeline t p = Timeline
-  { timelinePayload :: !(V.Vector p)
-  , timelineFrom    :: !(V.Vector t)
-  , timelineTo      :: !(V.Vector t)
+  { timelinePayload :: !(Vector p)
+  , timelineFrom    :: !(Vector t)
+  , timelineTo      :: !(Vector t)
   } deriving (Functor, Foldable, Traversable)
 
 instance (Ord t, Num t) => IsString (Timeline t Char) where
@@ -26,10 +27,10 @@ instance Integral t => Show (Timeline t Char) where
 
 
 isEmpty :: Timeline t p -> Bool
-isEmpty (Timeline ps froms tos) = V.null ps || V.null froms || V.null tos
+isEmpty (Timeline ps froms tos) = Vector.null ps || Vector.null froms || Vector.null tos
 
 empty :: Timeline t p
-empty = Timeline V.empty V.empty V.empty
+empty = Timeline Vector.empty Vector.empty Vector.empty
 
 -- | Create strict Timeline from three lists.
 --
@@ -40,9 +41,9 @@ empty = Timeline V.empty V.empty V.empty
 -- aa bb
 fromLists :: [p] -> [t] -> [t] -> Timeline t p
 fromLists p from to
-  = fromVectors (V.fromList p) (V.fromList from) (V.fromList to)
+  = fromVectors (Vector.fromList p) (Vector.fromList from) (Vector.fromList to)
 
-fromVectors :: V.Vector p -> V.Vector t -> V.Vector t -> Timeline t p
+fromVectors :: Vector p -> Vector t -> Vector t -> Timeline t p
 fromVectors = Timeline
 
 fromNaive :: Naive.Timeline t p -> Timeline t p
@@ -54,7 +55,7 @@ toNaive
   :: Ord t
   => Timeline t p
   -> Naive.Timeline t p
-toNaive (Timeline ps froms tos) = Naive.Timeline $ V.toList $ V.zipWith3 toNaiveEvent ps froms tos
+toNaive (Timeline ps froms tos) = Naive.Timeline $ Vector.toList $ Vector.zipWith3 toNaiveEvent ps froms tos
   where
     toNaiveEvent p from to = Event (mkInterval from to) p
 
@@ -65,41 +66,41 @@ unsafeMapTimestampMonotonic f tl = tl
   }
 
 -- | Insert event into the timeline.
--- 
+--
 -- >>> f = (\_ b = b)
 -- >>> payloads = ['a']
 -- >>> froms = [2]
 -- >>> tos   = [5]
--- 
+--
 -- >>> t = fromLists payloads froms tos
 -- >>> t
 --   aaa
--- 
+--
 -- case 1
 -- >>> event = Event (mkInterval 1 6) 'b'
 -- >>> insertWith f event t
---  bbbbb  
--- 
+--  bbbbb
+--
 -- case 2
 -- >>> event = Event (mkInterval 3 4) 'b'
 -- >>> insertWith f event t
 --   aba
--- 
+--
 -- case 3
 -- >>> event = Event (mkInterval 2 4) 'b'
 -- >>> insertWith f event t
 --   bba
--- 
+--
 -- case 4
 -- >>> event = Event (mkInterval 3 5) 'b'
 -- >>> insertWith f event t
---   abb 
--- 
+--   abb
+--
 -- case 5
 -- >>> event = Event (mkInterval 0 1) 'b'
 -- >>> insertWith f event t
 -- b aaa
--- 
+--
 -- case 6
 -- >>> event = Event (mkInterval 6 7) 'b'
 -- >>> insertWith f event t
@@ -119,7 +120,7 @@ unsafeMapTimestampMonotonic f tl = tl
 -- >>> event = Event (mkInterval 4 6) 'b'
 -- >>> insertWith f event t
 --   aabb
--- 
+--
 -- case 10
 -- >>> event = Event (mkInterval 2 6) 'b'
 -- >>> insertWith f event t
@@ -149,11 +150,11 @@ insertImpl
   (Timeline ps froms tos)
   -- case 5
   | to1 < from2
-    = Timeline (V.cons p1 ps) (V.cons from1 froms) (V.cons to1 tos)
-    
+    = Timeline (Vector.cons p1 ps) (Vector.cons from1 froms) (Vector.cons to1 tos)
+
   | otherwise = error "not yet"
   where
-    p2 = V.head ps
-    from2 = V.head froms
-    to2 = V.head tos
-    maybeFromIdx = V.findIndex (> from1) froms
+    p2 = Vector.head ps
+    from2 = Vector.head froms
+    to2 = Vector.head tos
+    maybeFromIdx = Vector.findIndex (> from1) froms

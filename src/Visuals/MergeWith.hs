@@ -1,9 +1,8 @@
-module Visuals.Timeline where
+module Visuals.MergeWith where
 
 import CodeWorld hiding (Event)
-import Visuals.Event
 import Visuals.Helpers
-import Data.Timeline.Event
+import Data.Timeline.Event hiding (mergeWith)
 import Data.Timeline.Interval
 import Data.Timeline.Naive
 
@@ -18,9 +17,6 @@ b = Timeline [ Event (mkInterval 2 5) green
              , Event (mkInterval 6 9) green
              , Event (mkInterval 10 13) green
              ]
-             
-drawTimeline :: Timeline Int Color -> Picture
-drawTimeline t = pictures $ map drawEvent (Prelude.reverse $ getTimeline t)
 
 picA :: Picture
 picA = drawPicWithText "A" (drawTimeline a)
@@ -29,7 +25,7 @@ picB :: Picture
 picB = drawPicWithText "B" (drawTimeline b) 
                               
 picC :: Picture
-picC = drawPicWithText "A `union` B" (drawTimeline $ unionBy (\_ x -> x) a b)
+picC = drawPicWithText "A merge B" (drawTimeline $ intersectWith (\_ x -> x) a b)
 
-unionByPic :: IO()
-unionByPic = drawingOf $ drawInColumn [picA, picB, picC]
+pic :: IO()
+pic = drawingOf $ drawInColumn [picA, picB, picC]

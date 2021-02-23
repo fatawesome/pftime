@@ -629,7 +629,7 @@ mergeWith
   => (p -> p -> p) -- ^ resolve function
   -> Timeline t p  -- ^ A
   -> Timeline t p  -- ^ B
-  -> Timeline t p 
+  -> Timeline t p
 mergeWith f x y = _mergeWith f x y empty
 
 -- @'mergeWith' helper function.
@@ -703,9 +703,9 @@ intersect (Timeline xs) (Timeline ys)
 
 intersectWith
   :: Ord t
-  => (Event t p -> Event t p -> Event t p)
-  -> Timeline t p
-  -> Timeline t p
+  => (Event t p -> Event t p -> Event t p) -- ^ resolver
+  -> Timeline t p -- ^ A
+  -> Timeline t p -- ^ B
   -> Timeline t p
 intersectWith _ (Timeline []) _ = empty
 intersectWith _ _ (Timeline []) = empty
@@ -715,25 +715,25 @@ intersectWith
   t2@(Timeline (e2@(Event (Interval (l2, r2)) p2):ys))
 
   -- 5
-  | l1 > r2 = Timeline (e2 : getTimeline (intersectWith f t1 (Timeline ys)))
+  | l1 >= r2 = intersectWith f t1 (Timeline ys)
 
   -- 6
-  | r1 < l2 = Timeline (e1 : getTimeline (intersectWith f (Timeline xs) t2))
+  | r1 <= l2 = intersectWith f (Timeline xs) t2
 
   -- 1
   | l1 > l2 && r1 < r2
     = Timeline (
-      [ Event (mkInterval l2 l1) p2
-      , f e1 (Event (mkInterval l1 r1) p2)
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
     )
 
   -- 2
   | l1 < l2 && r1 > r2
     = Timeline (
-      [ Event (mkInterval l1 l2) p1
-      , f (Event (mkInterval l2 r2) p1) e2
-      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+      f (Event (mkInterval l2 r2) p1) e2
+      :
+      getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
     )
 
   -- 3
@@ -747,9 +747,9 @@ intersectWith
   -- 4
   | l1 < l2 && r1 == r2
     = Timeline (
-      [ Event (mkInterval l1 l2) p1
-      , f (Event (mkInterval l2 r2) p1) e2
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+      f (Event (mkInterval l2 r2) p1) e2
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline ys))
     )
 
   -- 7
@@ -759,17 +759,17 @@ intersectWith
   -- 9
   | l1 < l2 && r1 < r2
     = Timeline (
-      [ Event (mkInterval l1 l2) p1
-      , f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+      f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
     )
 
   -- 8
   | l1 > l2 && r1 > r2
     = Timeline (
-      [ Event (mkInterval l2 l1) p2
-      , f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
-      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+      f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
+      :
+      getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
     )
 
   -- 10
@@ -783,9 +783,9 @@ intersectWith
   -- 11
   | l1 > l2 && r1 == r2
     = Timeline (
-      [ Event (mkInterval l2 l1) p1
-      , f e1 (Event (mkInterval l1 r1) p2)
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline ys))
     )
   | otherwise = error "One or multiple timelines do not satisfy timeline properties."
 

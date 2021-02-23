@@ -1,4 +1,4 @@
-module Visuals.MergeWith where
+module Visuals.IntersectWith where
 
 import CodeWorld hiding (Event)
 import Visuals.Helpers
@@ -22,10 +22,13 @@ picA :: Picture
 picA = drawPicWithText "A" (drawTimeline a)
 
 picB :: Picture                          
-picB = drawPicWithText "B" (drawTimeline b) 
+picB = drawPicWithText "B" (drawTimeline b)
+
+mixColors :: Event Int Color -> Event Int Color -> Event Int Color
+mixColors (Event i1 color1) (Event _ color2) = Event i1 (mixed [color1, color2]) 
                               
 picC :: Picture
-picC = drawPicWithText "A merge B" (drawTimeline $ mergeWith (\_ x -> x) a b)
+picC = drawPicWithText "A intersect B" (drawTimeline $ intersectWith mixColors a b)
 
 pic :: IO()
 pic = drawingOf $ drawInColumn [picA, picB, picC]

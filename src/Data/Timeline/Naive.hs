@@ -275,29 +275,26 @@ insert
 
 -- | \( O(n) \). Delete all entries for the given range from timeline.
 --
--- >>> toString $ delete (Interval (0, 1)) (mkPictoralTimeline " xx")
--- " xx"
+-- >>> delete (Interval (0, 1)) " xx" :: PictoralTimeline
+--  xx
 --
--- >>> toString $ delete (Interval (2, 3)) (mkPictoralTimeline "xx")
--- "xx"
+-- >>> delete (Interval (2, 3)) "xx" :: PictoralTimeline
+-- xx
 --
--- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx")
--- "xx"
+-- >>> delete (Interval (2, 5)) "xxx" :: PictoralTimeline
+-- xx
 --
--- >>> toString $ delete (Interval (0, 2)) (mkPictoralTimeline " xxx")
--- "  xx"
+-- >>> delete (Interval (0, 2)) " xxx" :: PictoralTimeline
+--   xx
 --
--- >>> toString $ delete (Interval (1, 2)) (mkPictoralTimeline "xxx")
--- "x x"
+-- >>> delete (Interval (1, 2)) "xxx" :: PictoralTimeline
+-- x x
 --
--- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx yyy")
--- "xx   yy"
+-- >>> delete (Interval (2, 5)) "xxx yyy" :: PictoralTimeline
+-- xx   yy
 --
--- >>> toString $ delete (Interval (0, 3)) (mkPictoralTimeline " x")
--- ""
---
--- >>> toString $ delete (Interval (5, 7)) (mkPictoralTimeline "xxx yyy")
--- "xxx y"
+-- >>> delete (Interval (5, 7)) "xxx yyy" :: PictoralTimeline
+-- xxx y
 delete
   :: Ord t
   => Interval t
@@ -586,81 +583,81 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
 --
--- >>> unionBy (\a b -> b) "xxx" "" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "" :: PictoralTimeline
 -- xxx
 --
--- >>> unionBy (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
 -- xxxyyy
 --
--- >>> unionBy (\a b -> b) "xxx" "yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "yyy" :: PictoralTimeline
 -- yyy
 --
--- >>> unionBy (\a b -> b) "xxx" " yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" " yyy" :: PictoralTimeline
 -- xyyy
 --
--- >>> unionBy (\a b -> b) " xxx" "yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) " xxx" "yyy" :: PictoralTimeline
 -- yyyx
 --
--- >>> unionBy (\a b -> b) "xx" "   yy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xx" "   yy" :: PictoralTimeline
 -- xx yy
 --
--- >>> unionBy (\a b -> b) " x y z" "x y z" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) " x y z" "x y z" :: PictoralTimeline
 -- xxyyzz
 --
--- >>> unionBy (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
 -- xaxbx
 --
 -- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
 -- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
 -- xxaaaybbbzccc
 --
 -- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
 -- >>> let t2 = " aa bb cc" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
 -- xaaxbbxcc
 --
 -- >>> let t1 = " aa bb cc" :: PictoralTimeline
 -- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
--- >>> unionBy (\a b -> b) t1 t2
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
 -- xxxxxxxxc
-unionBy
+mergeWith
   :: Ord t
-  => (p -> p -> p)
+  => (p -> p -> p) -- ^ resolve function
+  -> Timeline t p  -- ^ A
+  -> Timeline t p  -- ^ B
   -> Timeline t p
-  -> Timeline t p
-  -> Timeline t p
-unionBy f x y = _unionBy f x y empty
+mergeWith f x y = _mergeWith f x y empty
 
--- @'unionBy' helper function.
+-- @'mergeWith' helper function.
 -- Uses reversed accumulator timeline to allow \( O(1) \) access to the last accumulated element.
--- This way it is possible to achieve \( O(n+m) \) total @'unionBy' complexity.
-_unionBy
+-- This way it is possible to achieve \( O(n+m) \) total @'mergeWith' complexity.
+_mergeWith
   :: Ord t
   => (p -> p -> p)
   -> Timeline t p  -- ^ timeline 1
   -> Timeline t p  -- ^ timeline 2
   -> Timeline t p  -- ^ reversed accumulated timeline
   -> Timeline t p  -- ^ result
-_unionBy _ (Timeline []) (Timeline []) (Timeline []) = empty
-_unionBy _ (Timeline []) (Timeline []) acc           = reverse acc
+_mergeWith _ (Timeline []) (Timeline []) (Timeline []) = empty
+_mergeWith _ (Timeline []) (Timeline []) acc           = reverse acc
 
-_unionBy _ x (Timeline []) (Timeline []) = x
-_unionBy _ (Timeline []) y (Timeline []) = y
+_mergeWith _ x (Timeline []) (Timeline []) = x
+_mergeWith _ (Timeline []) y (Timeline []) = y
 
-_unionBy f (Timeline (x:xs)) (Timeline []) acc
-  = _unionBy f (Timeline xs) empty (_reversedInsert (flip f) x acc)
+_mergeWith f (Timeline (x:xs)) (Timeline []) acc
+  = _mergeWith f (Timeline xs) empty (_reversedInsert (flip f) x acc)
 
-_unionBy f (Timeline []) (Timeline (y:ys)) acc
-  = _unionBy f empty (Timeline ys) (_reversedInsert f y acc)
+_mergeWith f (Timeline []) (Timeline (y:ys)) acc
+  = _mergeWith f empty (Timeline ys) (_reversedInsert f y acc)
 
-_unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) (Timeline [])
-  | xi <= yi  = _unionBy f (Timeline xs) t2            (singleton x)
-  | otherwise = _unionBy f t1            (Timeline ys) (singleton y)
+_mergeWith f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) (Timeline [])
+  | xi <= yi  = _mergeWith f (Timeline xs) t2            (singleton x)
+  | otherwise = _mergeWith f t1            (Timeline ys) (singleton y)
 
-_unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) acc
-  | xi < yi = _unionBy f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
-  | otherwise = _unionBy f t1 (Timeline ys) (_reversedInsert f y acc)
+_mergeWith f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) acc
+  | xi < yi = _mergeWith f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
+  | otherwise = _mergeWith f t1 (Timeline ys) (_reversedInsert f y acc)
 
 _reversedInsert
   :: Ord t
@@ -669,7 +666,7 @@ _reversedInsert
   -> Timeline t p
   -> Timeline t p
 _reversedInsert _    el (Timeline [])     = singleton el
-_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (mergeWith func z el) ++ zs
+_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (Event.mergeWith func z el) ++ zs
 
 
 -- TODO: optimization
@@ -703,9 +700,9 @@ intersect (Timeline xs) (Timeline ys)
 
 intersectWith
   :: Ord t
-  => (Event t p -> Event t p -> Event t p)
-  -> Timeline t p
-  -> Timeline t p
+  => (Event t p -> Event t p -> Event t p) -- ^ resolver
+  -> Timeline t p -- ^ A
+  -> Timeline t p -- ^ B
   -> Timeline t p
 intersectWith _ (Timeline []) _ = empty
 intersectWith _ _ (Timeline []) = empty
@@ -715,25 +712,25 @@ intersectWith
   t2@(Timeline (e2@(Event (Interval (l2, r2)) p2):ys))
 
   -- 5
-  | l1 > r2 = Timeline (e2 : getTimeline (intersectWith f t1 (Timeline ys)))
+  | l1 >= r2 = intersectWith f t1 (Timeline ys)
 
   -- 6
-  | r1 < l2 = Timeline (e1 : getTimeline (intersectWith f (Timeline xs) t2))
+  | r1 <= l2 = intersectWith f (Timeline xs) t2
 
   -- 1
   | l1 > l2 && r1 < r2
     = Timeline (
-      [ Event (mkInterval l2 l1) p2
-      , f e1 (Event (mkInterval l1 r1) p2)
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
     )
 
   -- 2
   | l1 < l2 && r1 > r2
     = Timeline (
-      [ Event (mkInterval l1 l2) p1
-      , f (Event (mkInterval l2 r2) p1) e2
-      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+      f (Event (mkInterval l2 r2) p1) e2
+      :
+      getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
     )
 
   -- 3
@@ -747,9 +744,9 @@ intersectWith
   -- 4
   | l1 < l2 && r1 == r2
     = Timeline (
-      [ Event (mkInterval l1 l2) p1
-      , f (Event (mkInterval l2 r2) p1) e2
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+      f (Event (mkInterval l2 r2) p1) e2
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline ys))
     )
 
   -- 7
@@ -759,17 +756,17 @@ intersectWith
   -- 9
   | l1 < l2 && r1 < r2
     = Timeline (
-      [ Event (mkInterval l1 l2) p1
-      , f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
+      f (Event (mkInterval l2 r1) p1) (Event (mkInterval l2 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline (Event (mkInterval r1 r2) p2 : ys)))
     )
 
   -- 8
   | l1 > l2 && r1 > r2
     = Timeline (
-      [ Event (mkInterval l2 l1) p2
-      , f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
-      ] <> getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
+      f (Event (mkInterval l1 r2) p1) (Event (mkInterval l1 r2) p2)
+      :
+      getTimeline (intersectWith f (Timeline (Event (mkInterval r2 r1) p1 : xs)) (Timeline ys))
     )
 
   -- 10
@@ -783,9 +780,9 @@ intersectWith
   -- 11
   | l1 > l2 && r1 == r2
     = Timeline (
-      [ Event (mkInterval l2 l1) p1
-      , f e1 (Event (mkInterval l1 r1) p2)
-      ] <> getTimeline (intersectWith f (Timeline xs) (Timeline ys))
+      f e1 (Event (mkInterval l1 r1) p2)
+      :
+      getTimeline (intersectWith f (Timeline xs) (Timeline ys))
     )
   | otherwise = error "One or multiple timelines do not satisfy timeline properties."
 

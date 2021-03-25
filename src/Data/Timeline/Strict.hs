@@ -15,7 +15,7 @@ import qualified Data.Vector            as V
 data Timeline t p = Timeline
   { timelinePayload :: !(V.Vector p)
   , timelineFrom    :: !(V.Vector t)
-  , timelineTo      :: !(V.Vector t)
+  , timelineTo      :: !(V.Vector t) -- TODO investigate the unboxed vectors + type-level functions
   } deriving (Functor, Foldable, Traversable)
 
 instance (Ord t, Num t) => IsString (Timeline t Char) where
@@ -24,12 +24,20 @@ instance (Ord t, Num t) => IsString (Timeline t Char) where
 instance Integral t => Show (Timeline t Char) where
   show = show . toNaive
 
+-----------------------------------------------------------------------------
+-- * Accessors
 
 isEmpty :: Timeline t p -> Bool
 isEmpty (Timeline ps froms tos) = V.null ps || V.null froms || V.null tos
 
+-----------------------------------------------------------------------------
+-- * Construction
+
 empty :: Timeline t p
 empty = Timeline V.empty V.empty V.empty
+
+singleton :: Event t p -> Timeline t p
+singleton (Event (Interval (f, t)) p) = Timeline (V.singleton p) (V.singleton f) (V.singleton t) 
 
 -- | Create strict Timeline from three lists.
 --
@@ -66,11 +74,10 @@ unsafeMapTimestampMonotonic f tl = tl
 
 -- | Insert event into the timeline.
 -- 
--- >>> f = (\_ b = b)
+-- >>> f = (\a b -> b)
 -- >>> payloads = ['a']
 -- >>> froms = [2]
 -- >>> tos   = [5]
--- 
 -- >>> t = fromLists payloads froms tos
 -- >>> t
 --   aaa
@@ -129,31 +136,12 @@ unsafeMapTimestampMonotonic f tl = tl
 -- >>> event = Event (mkInterval 1 5) 'b'
 -- >>> insertWith f event t
 --  bbbb
+-- 
+-- TODO: rewrite not using lazy timeline.
 insertWith
   :: Ord t
   => (p -> p -> p)
   -> Event t p
   -> Timeline t p
   -> Timeline t p
-insertWith f event timeline
-  | isEmpty timeline = empty
-  | otherwise = insertImpl event timeline
-
-insertImpl
-  :: Ord t
-  => Event t p
-  -> Timeline t p
-  -> Timeline t p
-insertImpl
-  e@(Event (Interval (from1, to1)) p1)
-  (Timeline ps froms tos)
-  -- case 5
-  | to1 < from2
-    = Timeline (V.cons p1 ps) (V.cons from1 froms) (V.cons to1 tos)
-    
-  | otherwise = error "not yet"
-  where
-    p2 = V.head ps
-    from2 = V.head froms
-    to2 = V.head tos
-    maybeFromIdx = V.findIndex (> from1) froms
+insertWith f event timeline = fromNaive $ Naive.insert f event (toNaive timeline)

@@ -275,29 +275,26 @@ insert
 
 -- | \( O(n) \). Delete all entries for the given range from timeline.
 --
--- >>> toString $ delete (Interval (0, 1)) (mkPictoralTimeline " xx")
--- " xx"
+-- >>> delete (Interval (0, 1)) " xx" :: PictoralTimeline
+--  xx
 --
--- >>> toString $ delete (Interval (2, 3)) (mkPictoralTimeline "xx")
--- "xx"
+-- >>> delete (Interval (2, 3)) "xx" :: PictoralTimeline
+-- xx
 --
--- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx")
--- "xx"
+-- >>> delete (Interval (2, 5)) "xxx" :: PictoralTimeline
+-- xx
 --
--- >>> toString $ delete (Interval (0, 2)) (mkPictoralTimeline " xxx")
--- "  xx"
+-- >>> delete (Interval (0, 2)) " xxx" :: PictoralTimeline
+--   xx
 --
--- >>> toString $ delete (Interval (1, 2)) (mkPictoralTimeline "xxx")
--- "x x"
+-- >>> delete (Interval (1, 2)) "xxx" :: PictoralTimeline
+-- x x
 --
--- >>> toString $ delete (Interval (2, 5)) (mkPictoralTimeline "xxx yyy")
--- "xx   yy"
+-- >>> delete (Interval (2, 5)) "xxx yyy" :: PictoralTimeline
+-- xx   yy
 --
--- >>> toString $ delete (Interval (0, 3)) (mkPictoralTimeline " x")
--- ""
---
--- >>> toString $ delete (Interval (5, 7)) (mkPictoralTimeline "xxx yyy")
--- "xxx y"
+-- >>> delete (Interval (5, 7)) "xxx yyy" :: PictoralTimeline
+-- xxx y
 delete
   :: Ord t
   => Interval t
@@ -586,43 +583,43 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
 --
--- >>> mergeWith (\a b -> b) "xxx" "" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "" :: PictoralTimeline
 -- xxx
 --
--- >>> mergeWith (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
 -- xxxyyy
 --
--- >>> mergeWith (\a b -> b) "xxx" "yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "yyy" :: PictoralTimeline
 -- yyy
 --
--- >>> mergeWith (\a b -> b) "xxx" " yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" " yyy" :: PictoralTimeline
 -- xyyy
 --
--- >>> mergeWith (\a b -> b) " xxx" "yyy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) " xxx" "yyy" :: PictoralTimeline
 -- yyyx
 --
--- >>> mergeWith (\a b -> b) "xx" "   yy" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xx" "   yy" :: PictoralTimeline
 -- xx yy
 --
--- >>> mergeWith (\a b -> b) " x y z" "x y z" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) " x y z" "x y z" :: PictoralTimeline
 -- xxyyzz
 --
--- >>> mergeWith (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
 -- xaxbx
 --
 -- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
 -- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
--- >>> mergeWith (\a b -> b) t1 t2
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
 -- xxaaaybbbzccc
 --
 -- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
 -- >>> let t2 = " aa bb cc" :: PictoralTimeline
--- >>> mergeWith (\a b -> b) t1 t2
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
 -- xaaxbbxcc
 --
 -- >>> let t1 = " aa bb cc" :: PictoralTimeline
 -- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
--- >>> mergeWith (\a b -> b) t1 t2
+-- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
 -- xxxxxxxxc
 mergeWith
   :: Ord t

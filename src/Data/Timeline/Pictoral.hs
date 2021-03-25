@@ -48,8 +48,10 @@ mkPictoralTimeline str = unsafeFromList $ foldr f [] (parse str)
 toString :: Integral t => Timeline t Char -> String
 toString (Timeline tl) =
   case tl of
-    []   -> ""
-    e:es -> eventToString e <> eventsToString e es
+    []                                  -> ""
+    e@(Event (Interval (from, _)) _):es -> replicate (fromIntegral from) ' ' 
+                                           <> eventToString e 
+                                           <> eventsToString e es
   where
     eventToString (Event (Interval (from, to)) c) = replicate (fromIntegral (to - from)) c
     eventsToString e es = Prelude.concat

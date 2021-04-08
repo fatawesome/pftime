@@ -72,15 +72,6 @@ fromNaive = uncurry3 fromLists . unzip3 . map f . Naive.getTimeline
   where
     f (Event (Interval (from, to)) p) = (p, from, to)
 
--- | /O(n)/ Convert Strict structure to Naive
-toNaive
-  :: Ord t
-  => Timeline t p
-  -> Naive.Timeline t p
-toNaive (Timeline ps froms tos) = Naive.Timeline $ V.toList $ V.zipWith3 toNaiveEvent ps froms tos
-  where
-    toNaiveEvent p from to = Event (mkInterval from to) p
-
 unsafeMapTimestampMonotonic :: (t -> t') -> Timeline t p -> Timeline t' p
 unsafeMapTimestampMonotonic f tl = tl
   { timelineFrom = f <$> timelineFrom tl
@@ -189,11 +180,16 @@ filterEvents f (Timeline ps fs ts) = fromVectorsTuple $ V.unzip3 $ V.filter g (V
 -----------------------------------------------------------------------------
 -- * Updates
 
+-- | /O(1)/ Delete first /n/ events from the timeline.
 drop
   :: Int
   -> Timeline t p
   -> Timeline t p
 drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
+
+-- /O(log(n))/ with binary search and V.splitAt? 
+delete :: Interval t -> Timeline t p -> Timeline t p
+delete (Interval (from, to)) t = error "not implemented"
 
 -----------------------------------------------------------------------------
 -- * Combinations
@@ -201,3 +197,14 @@ drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
 unsafeConcat :: Timeline t p -> Timeline t p -> Timeline t p
 unsafeConcat (Timeline ps1 fs1 ts1) (Timeline ps2 fs2 ts2)
   = Timeline (ps1 V.++ ps2) (fs1 V.++ fs2) (ts1 V.++ ts2)
+  
+-----------------------------------------------------------------------------
+-- * Conversion  
+-- | /O(n)/ Convert Strict structure to Naive
+toNaive
+  :: Ord t
+  => Timeline t p
+  -> Naive.Timeline t p
+toNaive (Timeline ps froms tos) = Naive.Timeline $ V.toList $ V.zipWith3 toNaiveEvent ps froms tos
+  where
+    toNaiveEvent p from to = Event (mkInterval from to) p

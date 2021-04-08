@@ -696,7 +696,7 @@ intersect (Timeline xs) (Timeline ys)
   = unsafeFromList $ mapMaybe (handleIntersectionWithPayload ys) xs
   where
     handleIntersectionWithPayload t (Event i p)
-      = case findIntersectionFlip (map interval t) i of
+      = case findIntersectionFlip (map Event.getInterval t) i of
         Just x  -> Just $ Event x p
         Nothing -> Nothing
     findIntersectionFlip x y = findIntersection y x
@@ -876,7 +876,7 @@ isAscending :: Ord a => [a] -> Bool
 isAscending xs = and (zipWith (<) xs (Prelude.drop 1 xs))
 
 isValid :: Ord t => Timeline t p -> Bool
-isValid = isAscending . map interval . toList
+isValid = isAscending . map Event.getInterval . toList
 
 -----------------------------------------------------------------------------
 -- * Helpers
@@ -961,7 +961,7 @@ shrink diff = unsafeFromList . shrink' . toList
   where
     shrink' events = zipWith Event intervals events
       where
-        intervals = scanl1 step (map (toRel . interval) events)
+        intervals = scanl1 step (map (toRel . Event.getInterval) events)
         step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
         toRel (Interval (from, to)) = Interval (0, to `diff` from)
 

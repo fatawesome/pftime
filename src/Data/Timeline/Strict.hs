@@ -9,7 +9,7 @@ import           Data.String            (IsString (..))
 import           Data.Timeline.Event
 import           Data.Timeline.Interval
 import qualified Data.Timeline.Naive    as Naive
-import qualified Data.Timeline.Pictoral ()
+import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
 import qualified Data.Vector            as V
 
@@ -25,8 +25,8 @@ data Timeline t p = Timeline
   , timelineTo      :: !(V.Vector t) -- TODO investigate the unboxed vectors + type-level functions
   } deriving (Functor, Foldable, Traversable)
 
-instance (Ord t, Num t) => IsString (Timeline t Char) where
-  fromString = fromNaive . fromString
+instance (Ord t, Num t, Integral t) => IsString (Timeline t Char) where
+  fromString = fromNaive . Pic.mkPictoralTimeline
 
 instance Integral t => Show (Timeline t Char) where
   show = show . toNaive

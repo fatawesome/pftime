@@ -357,19 +357,19 @@ drop n timeline@(Timeline (_:xs))
 -- | Return suffix after dropping events which satisfy the predicate.
 --
 -- >>> let t = "yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
+-- >>> dropWhile (\e -> getPayload e == 'x') t
 -- yyy
 --
 -- >>> let t = "x yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
+-- >>> dropWhile (\e -> getPayload e == 'x') t
 --   yyy
 --
 -- >>> let t = "x x yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
+-- >>> dropWhile (\e -> getPayload e == 'x') t
 --     yyy
 --
 -- >>> let t = "z xxx yyy" :: PictoralTimeline
--- >>> dropWhile (\e -> payload e == 'x') t
+-- >>> dropWhile (\e -> getPayload e == 'x') t
 -- z xxx yyy
 dropWhile
   :: Ord t
@@ -472,8 +472,12 @@ take n (Timeline (x:xs)) = Timeline (x : getTimeline (take (n-1) (Timeline xs)))
 
 -- | \( O(n) \). Get events while they satisfy given condition.
 --
--- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "xxx y xx") == mkPictoralTimeline "xxx"
--- prop> takeWhile (\x -> payload x == 'x') (mkPictoralTimeline "y xx") == empty
+-- >>> takeWhile (\x -> getPayload x == 'x') "xxx y xx" :: PictoralTimeline
+-- xxx
+-- 
+-- >>> let t = "y xx" :: PictoralTimeline
+-- >>> takeWhile (\x -> getPayload x == 'x') t == empty
+-- True
 takeWhile
   :: Ord t
   => (Event t p -> Bool)
@@ -492,8 +496,7 @@ takeWhile f (Timeline (x:xs))
 
 -- | \( O(n) \). Filter all events that satisfy the predicate.
 --
--- >>> let t = "x y x z" :: PictoralTimeline
--- >>> filter (\x -> payload x == 'x') t
+-- >>> filter (\x -> getPayload x == 'x') "x y x z" :: PictoralTimeline
 -- x   x
 filter
   :: Ord t
@@ -950,7 +953,7 @@ withReference_ = withReference (-) (+) (flip const)
 -- | Shrink an (absolute) timeline by removing all the gaps between events.
 -- The result is a (relative) timeline with original (absolute) events.
 --
--- >>> payload <$> shrink (-) "  xxx yyyy   zzz" :: PictoralTimeline
+-- >>> getPayload <$> shrink (-) "  xxx yyyy   zzz" :: PictoralTimeline
 -- xxxyyyyzzz
 shrink
   :: (Num rel)
@@ -980,7 +983,7 @@ shrink diff = unsafeFromList . shrink' . toList
 -- xxxx yyyy
 -- >>> t2
 -- 1 111 11
--- >>> unsafeIntersectionWithEvent (\i e _ -> e { interval = i }) t1 t2
+-- >>> unsafeIntersectionWithEvent (\i e _ -> e { Event.getInterval = i }) t1 t2
 -- x xx  yy
 unsafeIntersectionWithEvent
   :: (Ord t)

@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Data.Timeline.Strict where
 
-import           Prelude                hiding (drop, dropWhile, filter)
+import           Prelude                hiding (drop, dropWhile, filter, head, last)
 import           Data.String            (IsString (..))
 import           Data.Timeline.Event
 import           Data.Timeline.Interval
@@ -37,11 +37,41 @@ instance Integral t => Show (Timeline t Char) where
 isEmpty :: Timeline t p -> Bool
 isEmpty (Timeline ps froms tos) = V.null ps || V.null froms || V.null tos
 
-firstEvent :: Timeline t p -> Maybe (Event t p)
-firstEvent t@(Timeline ps fs ts)
+head :: Timeline t p -> Maybe (Event t p)
+head t@(Timeline ps fs ts)
   | isEmpty t = Nothing
   | otherwise = Just (Event (Interval (V.head fs, V.head ts)) (V.head ps))
+  
+last :: Timeline t p -> Maybe (Event t p)
+last t@(Timeline ps fs ts)
+  | isEmpty t = Nothing
+  | otherwise = Just (Event (Interval (V.last fs, V.last ts)) (V.last ps))
+    
+unsafeHead :: Timeline t p -> Event t p
+unsafeHead (Timeline ps fs ts) = Event (Interval (V.head fs, V.head ts)) (V.head ps)
 
+unsafeLast :: Timeline t p -> Event t p
+unsafeLast (Timeline ps fs ts) = Event (Interval (V.last fs, V.last ts)) (V.last ps)
+
+startTime :: Timeline t p -> Maybe t
+startTime timeline = case head timeline of
+  Nothing -> Nothing
+  Just (Event (Interval (from, _)) _) -> Just from
+  
+endTime :: Timeline t p -> Maybe t
+endTime timeline = case last timeline of
+  Nothing -> Nothing
+  Just (Event (Interval (_, to)) _) -> Just to
+  
+unsafeStartTime :: Timeline t p -> t
+unsafeStartTime timeline = from
+  where
+    (Event (Interval (from, _)) _) = unsafeHead timeline
+    
+unsafeEndTime :: Timeline t p -> t
+unsafeEndTime timeline = to
+  where
+    (Event (Interval (_, to)) _) = unsafeLast timeline
 -----------------------------------------------------------------------------
 -- * Construction
 
@@ -177,6 +207,57 @@ filterEvents f (Timeline ps fs ts) = fromVectorsTuple $ V.unzip3 $ V.filter g (V
     g = f . uncurry3 fromTriple
     fromVectorsTuple (a, b, c) = Timeline a b c
 
+-- | /O(log(n)/ Search for events which happen during given time interval. 
+-- If there are no such events, returns empty timeline.  
+search :: Ord t => Interval t -> Timeline t p -> Timeline t p
+search interval t = fromEvents $ binarySearchEvents interval (toEvents t)
+        
+-- | /O(log(n))/ Binary search in vector with entries of Event type.
+-- 
+-- >>> let t = "aaaaa" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 1 3) (toEvents $ fromNaive t) == V.singleton (Event (mkInterval 1 3) 'a')
+-- True
+-- 
+-- >>> let t = "aaaaa" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 0 7) (toEvents $ fromNaive t) == V.singleton (Event (mkInterval 0 5) 'a')
+-- True
+--
+-- >>> let t = "  aaa" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 0 4) (toEvents $ fromNaive t) == V.singleton (Event (mkInterval 2 4) 'a')
+-- True
+-- 
+-- >>> let t = "aaa bbb" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 0 7) (toEvents $ fromNaive t) == V.fromList [(Event (mkInterval 0 3) 'a'), (Event (mkInterval 4 7) 'b')]
+-- True
+-- 
+-- >>> let t = "aaa bbb" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 3 4) (toEvents $ fromNaive t) == V.empty
+-- True
+--
+-- >>> let t = "aaa bbb" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 2 5) (toEvents $ fromNaive t) == V.fromList [(Event (mkInterval 2 3) 'a'), (Event (mkInterval 4 5) 'b')]
+-- True
+--
+-- >>> let t = "aaa bbb ccc" :: PictoralTimeline
+-- >>> binarySearchEvents (mkInterval 2 9) (toEvents $ fromNaive t) == V.fromList [(Event (mkInterval 2 3) 'a'), (Event (mkInterval 4 7) 'b'), (Event (mkInterval 8 9) 'c')]
+-- True
+binarySearchEvents :: (Ord t) => Interval t -> V.Vector (Event t p) -> V.Vector (Event t p)
+binarySearchEvents i@(Interval (from, to)) events
+  | V.null events = V.empty
+  | f >= to       = binarySearchEvents i as
+  | t <= from     = binarySearchEvents i bs
+  | from >= f && to <= t = V.singleton (Event i p)
+  | from < f  && to > t  = binarySearchEvents i as <> V.singleton element <> binarySearchEvents i bs
+  | from < f  && to <= t = binarySearchEvents i as <> V.singleton (Event (mkInterval f to) p)
+  | from >= f && to > t  = V.singleton (Event (mkInterval from t) p) <> binarySearchEvents i bs
+  | otherwise = V.empty
+  where
+    index       = V.length events `quot` 2
+    (as, right) = V.splitAt index events
+    element     = V.unsafeHead right
+    bs          = V.unsafeTail right
+    (Event (Interval (f, t)) p) = element
+
 -----------------------------------------------------------------------------
 -- * Updates
 
@@ -189,7 +270,10 @@ drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
 
 -- /O(log(n))/ with binary search and V.splitAt? 
 delete :: Interval t -> Timeline t p -> Timeline t p
-delete (Interval (from, to)) t = error "not implemented"
+delete (Interval (from, to)) (Timeline ps fs ts) = error "not yet"
+  where
+    compareOnStart (_, f1, _) (_, f2, _) = compare f1 f2
+    compareOnEnd   (_, f1, _) (_, f2, _) = compare f1 f2
 
 -----------------------------------------------------------------------------
 -- * Combinations
@@ -208,3 +292,10 @@ toNaive
 toNaive (Timeline ps froms tos) = Naive.Timeline $ V.toList $ V.zipWith3 toNaiveEvent ps froms tos
   where
     toNaiveEvent p from to = Event (mkInterval from to) p
+    
+toEvents :: Timeline t p -> V.Vector (Event t p)
+toEvents (Timeline ps fs ts) = V.map (uncurry3 fromTriple) (V.zip3 ps fs ts)
+
+fromEvents :: V.Vector (Event t p) -> Timeline t p
+fromEvents events = error "not implemented"
+

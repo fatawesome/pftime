@@ -33,6 +33,7 @@ dependencies:
 - extra >= 1.7.7
 - vector
 - time
+- syb
 
 library:
   source-dirs: src

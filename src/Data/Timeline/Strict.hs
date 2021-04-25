@@ -6,6 +6,7 @@ module Data.Timeline.Strict where
 
 import           Prelude                hiding (drop, dropWhile, filter, head, last)
 import           Data.String            (IsString (..))
+import           Data.Generics.Aliases
 import           Data.Timeline.Event
 import           Data.Timeline.Interval
 import qualified Data.Timeline.Naive    as Naive
@@ -72,6 +73,14 @@ unsafeEndTime :: Timeline t p -> t
 unsafeEndTime timeline = to
   where
     (Event (Interval (_, to)) _) = unsafeLast timeline
+    
+bounds :: Timeline t p -> Maybe (t, t)
+bounds x 
+  | isEmpty x = Nothing
+  | otherwise = Just (unsafeStartTime x, unsafeEndTime x)
+  
+unsafeBounds :: Timeline t p -> (t, t)
+unsafeBounds x = (unsafeStartTime x, unsafeEndTime x)
 -----------------------------------------------------------------------------
 -- * Construction
 
@@ -197,7 +206,6 @@ filter f = filterEvents g
 
 -- | /O(n) Filter timeline by events.
 --
---
 filterEvents
   :: (Event t p -> Bool)
   -> Timeline t p
@@ -211,6 +219,9 @@ filterEvents f (Timeline ps fs ts) = fromVectorsTuple $ V.unzip3 $ V.filter g (V
 -- If there are no such events, returns empty timeline.  
 search :: Ord t => Interval t -> Timeline t p -> Timeline t p
 search interval t = fromEvents $ binarySearchEvents interval (toEvents t)
+
+--searchIndices :: Ord t => Interval t -> Timeline t p -> (Int, Int)
+
         
 -- | /O(log(n))/ Binary search in vector with entries of Event type.
 -- 
@@ -257,6 +268,28 @@ binarySearchEvents i@(Interval (from, to)) events
     element     = V.unsafeHead right
     bs          = V.unsafeTail right
     (Event (Interval (f, t)) p) = element
+    
+binarySearchIndices :: (Ord t) => Interval t -> V.Vector (Event t p) -> Maybe (Int, Int)
+binarySearchIndices interval es = case go interval es of
+  (Just left, Just right) -> Just (left, right)
+  _ -> Nothing
+  where
+    go :: (Ord t) => Interval t -> V.Vector (Event t p) -> (Maybe Int, Maybe Int)
+    go i@(Interval (from, to)) events
+      | V.null events = (Nothing, Nothing)
+      | f >= to       = go i as
+      | t <= from     = go i bs
+      | from >= f && to <= t = (Just index, Just index)
+      | from < f  && to > t  = (fst (go i as) `orElse` Just index, snd (go i bs) `orElse` Just index)
+      | from < f  && to <= t = (fst (go i as), Just index)
+      | from >= f && to > t  = (Just index, snd (go i bs))
+      | otherwise = (Nothing, Nothing)
+      where
+        index       = V.length events `quot` 2
+        (as, right) = V.splitAt index events
+        element     = V.unsafeHead right
+        bs          = V.unsafeTail right
+        (Event (Interval (f, t)) _) = element
 
 -----------------------------------------------------------------------------
 -- * Updates
@@ -269,11 +302,20 @@ drop
 drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
 
 -- /O(log(n))/ with binary search and V.splitAt? 
-delete :: Interval t -> Timeline t p -> Timeline t p
-delete (Interval (from, to)) (Timeline ps fs ts) = error "not yet"
+delete :: Ord t => Interval t -> Timeline t p -> Timeline t p
+delete i t = fromEvents $ deleteEvents i (toEvents t)
+    
+deleteEvents :: Ord t => Interval t -> V.Vector (Event t p) -> V.Vector (Event t p)
+deleteEvents interval events = delete' (binarySearchIndices interval events) events
   where
-    compareOnStart (_, f1, _) (_, f2, _) = compare f1 f2
-    compareOnEnd   (_, f1, _) (_, f2, _) = compare f1 f2
+    delete' Nothing es = es
+    delete' (Just (left, right)) es = leftPart V.++ rightPart 
+      where
+        leftBound  = sliceEventBound interval (es V.! left)
+        rightBound = sliceEventBound interval (es V.! right)
+        leftPart   = leftBound `V.cons` V.unsafeInit (fst (V.splitAt left es))
+        rightPart  = V.unsafeTail (snd $ V.splitAt right es) `V.snoc` rightBound
+        
 
 -----------------------------------------------------------------------------
 -- * Combinations

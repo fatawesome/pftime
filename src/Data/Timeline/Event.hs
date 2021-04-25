@@ -22,6 +22,15 @@ fromTriple p f t = Event (Interval (f, t)) p
 toTuple :: Event t p -> (t, t, p)
 toTuple (Event (Interval (f, t)) p) = (f, t, p)
 
+changeFrom :: Ord t => t -> Event t p -> Event t p
+changeFrom from (Event (Interval (_, to)) payload) = Event (mkInterval from to) payload
+
+changeTo :: Ord t => t -> Event t p -> Event t p
+changeTo to (Event (Interval (from, _)) payload) = Event (mkInterval from to) payload
+
+sliceEventBound :: Ord t => Interval t -> Event t p -> Event t p
+sliceEventBound interval (Event oldInterval payload) = Event (sliceBound interval oldInterval) payload
+
 -- |
 --
 -- prop> mergeWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 3 6) 'y') == [(Event (mkInterval 0 3) 'x'), (Event (mkInterval 3 6) 'y')]

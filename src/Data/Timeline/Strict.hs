@@ -301,10 +301,11 @@ drop
   -> Timeline t p
 drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
 
--- /O(log(n))/ with binary search and V.splitAt? 
+-- | /O(n)/. Delete interval from the timeline. 
 delete :: Ord t => Interval t -> Timeline t p -> Timeline t p
 delete i t = fromEvents $ deleteEvents i (toEvents t)
     
+-- | /O(n)/. Delete interval from vector of events.
 deleteEvents :: Ord t => Interval t -> V.Vector (Event t p) -> V.Vector (Event t p)
 deleteEvents interval events = delete' (binarySearchIndices interval events) events
   where

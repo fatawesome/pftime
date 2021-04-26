@@ -662,7 +662,7 @@ _unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys
   | otherwise = _unionBy f t1            (Timeline ys) (singleton y)
 
 _unionBy f t1@(Timeline (x@(Event xi _) : xs)) t2@(Timeline (y@(Event yi _) : ys)) acc
-  | xi < yi = _unionBy f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
+  | xi < yi   = _unionBy f (Timeline xs) t2 (_reversedInsert (flip f) x acc)
   | otherwise = _unionBy f t1 (Timeline ys) (_reversedInsert f y acc)
 
 _reversedInsert

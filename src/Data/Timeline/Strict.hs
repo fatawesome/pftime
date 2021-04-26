@@ -8,7 +8,7 @@ import           Prelude                hiding (drop, dropWhile, filter, head, l
 import           Data.String            (IsString (..))
 import           Data.Generics.Aliases
 import           Data.Timeline.Event
-import           Data.Timeline.Interval
+import           Data.Timeline.Interval hiding (getInterval)
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
@@ -325,6 +325,108 @@ unsafeConcat :: Timeline t p -> Timeline t p -> Timeline t p
 unsafeConcat (Timeline ps1 fs1 ts1) (Timeline ps2 fs2 ts2)
   = Timeline (ps1 V.++ ps2) (fs1 V.++ fs2) (ts1 V.++ ts2)
   
+merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
+merge a b = fromEvents $ mergeEvents (\_ x -> x) (toEvents a) (toEvents b)
+
+-- | \( O(n+m) \). Returns timeline union of two timelines. For example,
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = "" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxx
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = "   yyy" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxxyyy
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = "yyy" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- yyy
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = " yyy" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- xyyy
+--
+-- >>> let a = " xxx" :: PictoralTimeline
+-- >>> let b = "yyy" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- yyyx
+--
+-- >>> let a = "xx" :: PictoralTimeline
+-- >>> let b = "   yy" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- xx yy
+--
+-- >>> let a = " x y z" :: PictoralTimeline
+-- >>> let b = "x y z" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxyyzz
+--
+-- >>> let a = "xxxxx" :: PictoralTimeline
+-- >>> let b = " a b" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive a) (fromNaive b)
+-- xaxbx
+--
+-- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
+-- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive t1) (fromNaive t2)
+-- xxaaaybbbzccc
+--
+-- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
+-- >>> let t2 = " aa bb cc" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive t1) (fromNaive t2)
+-- xaaxbbxcc
+--
+-- >>> let t1 = " aa bb cc" :: PictoralTimeline
+-- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
+-- >>> mergeW (\a b -> b) (fromNaive t1) (fromNaive t2)
+-- xxxxxxxxc
+mergeW :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
+mergeW f a b = fromEvents $ mergeEvents f (toEvents a) (toEvents b)
+
+mergeEvents
+  :: Ord t 
+  => (p -> p -> p) 
+  -> V.Vector (Event t p) 
+  -> V.Vector (Event t p) 
+  -> V.Vector (Event t p)
+mergeEvents f as bs
+  | V.null as && V.null bs = V.empty
+  | V.null as = bs
+  | V.null bs = as
+  | otherwise = mergeEventsImpl f V.empty as bs
+
+mergeEventsImpl
+  :: Ord t 
+  => (p -> p -> p) 
+  -> V.Vector (Event t p)
+  -> V.Vector (Event t p) 
+  -> V.Vector (Event t p)
+  -> V.Vector (Event t p)
+mergeEventsImpl f acc as bs
+  | V.null as && V.null bs && V.null acc = V.empty
+  | V.null as && V.null bs  = acc
+  | V.null as && V.null acc = bs
+  | V.null bs && V.null acc = as
+  | V.null as = mergeEventsImpl f accumulateB as (V.tail bs) 
+  | V.null bs = mergeEventsImpl f accumulateA (V.tail as) bs
+  | otherwise = if getInterval a <= getInterval b
+                  then mergeEventsImpl f accumulateA (V.tail as) bs
+                  else mergeEventsImpl f accumulateB as (V.tail bs)
+  where
+    a = V.head as
+    b = V.head bs
+    accumulateA = if V.null acc
+                    then V.singleton a
+                    else V.init acc V.++ V.fromList (mergeWith f a (V.last acc))
+    accumulateB = if V.null acc
+                    then V.singleton b
+                    else V.init acc V.++ V.fromList (mergeWith f (V.last acc) b)
+    
+  
 -----------------------------------------------------------------------------
 -- * Conversion  
 -- | /O(n)/ Convert Strict structure to Naive
@@ -340,5 +442,5 @@ toEvents :: Timeline t p -> V.Vector (Event t p)
 toEvents (Timeline ps fs ts) = V.map (uncurry3 fromTriple) (V.zip3 ps fs ts)
 
 fromEvents :: V.Vector (Event t p) -> Timeline t p
-fromEvents events = error "not implemented"
+fromEvents events = fromNaive $ Naive.Timeline (V.toList events)
 

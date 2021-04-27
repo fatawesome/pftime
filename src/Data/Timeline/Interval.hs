@@ -79,6 +79,14 @@ subtract x@(Interval (x1, x2)) y
   = case x `intersect` y of
     Just (Interval (i1, i2)) -> catMaybes [mkMaybeInterval (x1, i1), mkMaybeInterval (i2, x2)]
     Nothing -> [x]
+  
+-- | Function removes left OR right part of interval.
+-- Otherwise (if slicing returns list of intervals) throws an error.
+sliceBound :: Ord t => Interval t -> Interval t -> Interval t
+sliceBound x y = case subtract x y of
+  [interval] -> interval
+  _          -> error "Error: subtract to single can be used only with confidence that operation will return 1 exact interval" 
+   
 
 concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)

@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Data.Timeline.Event where
 
-import           Data.Timeline.Interval hiding (adjacent)
+import           Data.Timeline.Interval hiding (adjacent, getInterval)
 import qualified Data.Timeline.Interval as Interval
 
 data Event t p = Event {
-  interval :: Interval t,
-  payload  :: p
+  getInterval :: Interval t,
+  getPayload  :: p
 } deriving (Show, Eq, Functor)
 
 -- | /O(1)/.
@@ -15,9 +15,21 @@ data Event t p = Event {
 fromTuple :: (Interval t, p) -> Event t p
 fromTuple (i, p) = Event i p
 
+fromTriple :: p -> t -> t -> Event t p
+fromTriple p f t = Event (Interval (f, t)) p
+
 -- | Convert Event to tuple.
 toTuple :: Event t p -> (t, t, p)
 toTuple (Event (Interval (f, t)) p) = (f, t, p)
+
+changeFrom :: Ord t => t -> Event t p -> Event t p
+changeFrom from (Event (Interval (_, to)) payload) = Event (mkInterval from to) payload
+
+changeTo :: Ord t => t -> Event t p -> Event t p
+changeTo to (Event (Interval (from, _)) payload) = Event (mkInterval from to) payload
+
+sliceEventBound :: Ord t => Interval t -> Event t p -> Event t p
+sliceEventBound interval (Event oldInterval payload) = Event (sliceBound interval oldInterval) payload
 
 -- |
 --
@@ -106,4 +118,4 @@ adjacent
   -> Event t p
   -> Bool
 adjacent e1 e2
-  = Interval.adjacent (interval e1) (interval e2) && payload e1 == payload e2
+  = Interval.adjacent (getInterval e1) (getInterval e2) && getPayload e1 == getPayload e2

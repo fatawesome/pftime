@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9e69f338cc793c634912751b54ffbf64f6f67efbd88defafdd5354b6570527e7
+-- hash: d37b4ff14f780accc495e10c95a2d362a5516a7847a7547651f553d2a0a399ce
 
 name:           pftime
 version:        0.1.0.0
@@ -62,6 +62,7 @@ library
     , extra >=1.7.7
     , hspec
     , split
+    , syb
     , text
     , time
     , vector
@@ -82,6 +83,7 @@ executable pftime-exe
     , hspec
     , pftime
     , split
+    , syb
     , text
     , time
     , vector
@@ -107,6 +109,7 @@ test-suite doctests
     , hspec
     , pftime
     , split
+    , syb
     , template-haskell
     , text
     , time
@@ -131,6 +134,7 @@ test-suite pftime-test
     , hspec
     , pftime
     , split
+    , syb
     , text
     , time
     , vector

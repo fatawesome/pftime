@@ -28,4 +28,4 @@ fromList
   :: Ord t
   => [Event t p]
   -> OverlappingTimeline t p
-fromList xs = OverlappingTimeline (sortOn interval xs)
+fromList xs = OverlappingTimeline (sortOn getInterval xs)

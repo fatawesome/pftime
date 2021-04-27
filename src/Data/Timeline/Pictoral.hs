@@ -15,7 +15,7 @@ module Data.Timeline.Pictoral where
 import           Data.String            (IsString (..))
 
 import           Data.Timeline.Event    as Event
-import           Data.Timeline.Interval
+import           Data.Timeline.Interval as Interval
 import           Data.Timeline.Naive    hiding (filter)
 
 -----------------------------------------------------------------------------
@@ -49,8 +49,8 @@ toString :: Integral t => Timeline t Char -> String
 toString (Timeline tl) =
   case tl of
     []                                  -> ""
-    e@(Event (Interval (from, _)) _):es -> replicate (fromIntegral from) ' ' 
-                                           <> eventToString e 
+    e@(Event (Interval (from, _)) _):es -> replicate (fromIntegral from) ' '
+                                           <> eventToString e
                                            <> eventsToString e es
   where
     eventToString (Event (Interval (from, to)) c) = replicate (fromIntegral (to - from)) c
@@ -82,3 +82,9 @@ parse s =
   , c /= ' '
   , let i = fromIntegral i'
   ]
+
+toStringImpl :: (String, [Event Int Char]) -> (String, [Event Int Char])
+toStringImpl (string, []) = (string, [])
+toStringImpl (string, x@(Event (Interval (left, right)) char) : xs)
+  | length string < left = toStringImpl (string ++ emptiness (left - length string), x:xs)
+  | otherwise = toStringImpl (string ++ replicate (right - left) char, xs)

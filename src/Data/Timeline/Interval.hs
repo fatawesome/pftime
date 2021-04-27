@@ -103,7 +103,7 @@ shiftWith
 shiftWith f n (Interval (a, b)) = mkInterval (a `f` n) (b `f` n)
 
 ------------------------------------------------------------------------------
--- * Properties
+-- * Relationships
 
 -- |
 -- prop> adjacent (Interval (1,2)) (Interval (2,3)) == True
@@ -125,3 +125,27 @@ intersects
 intersects a b
   | isJust (a `intersect` b) = True
   | otherwise                = False
+
+
+-- Thirteen possible relationships between temporal intervals introduced by Allen.
+
+before :: Ord t => Interval t -> Interval t -> Bool
+before (Interval (_, t1)) (Interval (f2, _)) = t1 <= f2
+
+equal :: Ord t => Interval t -> Interval t -> Bool
+equal = (==)
+
+meets :: Ord t => Interval t -> Interval t -> Bool
+meets (Interval (f1, t1)) (Interval (f2, t2)) = f1 <= f2 && t1 >= t2
+
+overlaps :: Ord t => Interval t -> Interval t -> Bool
+overlaps (Interval (f1, t1)) (Interval (f2, t2)) = t1 > f2 && f1 < t2
+
+during :: Ord t => Interval t -> Interval t -> Bool
+during = flip meets
+
+starts :: Ord t => Interval t -> Interval t -> Bool
+starts (Interval (f1, _)) (Interval (f2, _)) = f1 == f2
+
+finishes :: Ord t => Interval t -> Interval t -> Bool
+finishes (Interval (_, t1)) (Interval (_, t2)) = t1 == t2

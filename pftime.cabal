@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 85894c84047cbd07c30de3de56c68f65d943fbaa01bdbdaced9c39e1c7f3d709
+-- hash: d37b4ff14f780accc495e10c95a2d362a5516a7847a7547651f553d2a0a399ce
 
 name:           pftime
 version:        0.1.0.0
@@ -42,6 +42,15 @@ library
       Data.Timeline.Pictoral
       Data.Timeline.Strict
       Data.Timeline.Time
+      Visuals.Ascending
+      Visuals.Event
+      Visuals.Helpers
+      Visuals.IntersectWith
+      Visuals.Interval
+      Visuals.MergeWith
+      Visuals.NoConflicts
+      Visuals.Relations
+      Visuals.WithReference
   other-modules:
       Paths_pftime
   hs-source-dirs:
@@ -49,10 +58,12 @@ library
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , codeworld-api ==0.3.1
     , extra >=1.7.7
     , hspec
     , split
     , syb
+    , text
     , time
     , vector
   default-language: Haskell2010
@@ -67,10 +78,13 @@ executable pftime-exe
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , codeworld-api ==0.3.1
     , extra >=1.7.7
     , hspec
+    , pftime
     , split
     , syb
+    , text
     , time
     , vector
   default-language: Haskell2010
@@ -89,6 +103,7 @@ test-suite doctests
       Glob
     , QuickCheck
     , base
+    , codeworld-api ==0.3.1
     , doctest
     , extra >=1.7.7
     , hspec
@@ -96,6 +111,7 @@ test-suite doctests
     , split
     , syb
     , template-haskell
+    , text
     , time
     , vector
   default-language: Haskell2010
@@ -113,11 +129,13 @@ test-suite pftime-test
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , codeworld-api ==0.3.1
     , extra >=1.7.7
     , hspec
     , pftime
     , split
     , syb
+    , text
     , time
     , vector
   default-language: Haskell2010

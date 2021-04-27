@@ -23,7 +23,7 @@ import           Data.Timeline.Naive    hiding (filter)
 
 type PictoralTimeline = Timeline Int Char
 
-instance IsString PictoralTimeline where
+instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = mkPictoralTimeline
 
 instance {-# OVERLAPPING #-} Integral t => Show (Timeline t Char) where
@@ -49,8 +49,8 @@ toString :: Integral t => Timeline t Char -> String
 toString (Timeline tl) =
   case tl of
     []                                  -> ""
-    e@(Event (Interval (from, _)) _):es -> replicate (fromIntegral from) ' ' 
-                                           <> eventToString e 
+    e@(Event (Interval (from, _)) _):es -> replicate (fromIntegral from) ' '
+                                           <> eventToString e
                                            <> eventsToString e es
   where
     eventToString (Event (Interval (from, to)) c) = replicate (fromIntegral (to - from)) c

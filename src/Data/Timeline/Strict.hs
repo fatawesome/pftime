@@ -25,12 +25,20 @@ instance (Ord t, Num t) => IsString (Timeline t Char) where
 instance Integral t => Show (Timeline t Char) where
   show = show . toNaive
 
+-----------------------------------------------------------------------------
+-- * Accessors
 
 isEmpty :: Timeline t p -> Bool
 isEmpty (Timeline ps froms tos) = Vector.null ps || Vector.null froms || Vector.null tos
 
+-----------------------------------------------------------------------------
+-- * Construction
+
 empty :: Timeline t p
 empty = Timeline Vector.empty Vector.empty Vector.empty
+
+singleton :: Event t p -> Timeline t p
+singleton (Event (Interval (f, t)) p) = Timeline (V.singleton p) (V.singleton f) (V.singleton t) 
 
 -- | Create strict Timeline from three lists.
 --
@@ -130,6 +138,8 @@ unsafeMapTimestampMonotonic f tl = tl
 -- >>> event = Event (mkInterval 1 5) 'b'
 -- >>> insertWith f event t
 --  bbbb
+-- 
+-- TODO: rewrite not using lazy timeline.
 insertWith
   :: Ord t
   => (p -> p -> p)

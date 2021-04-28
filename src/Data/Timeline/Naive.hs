@@ -584,6 +584,11 @@ union
   -> Timeline t p
 union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 
+-- | Merge two timelines. Choose second in case of conflicts.
+-- For general implementation see /mergeWith/.
+merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
+merge = Data.Timeline.Naive.mergeWith (\_ b -> b)
+
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
 --
 -- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "" :: PictoralTimeline

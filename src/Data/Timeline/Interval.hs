@@ -102,6 +102,10 @@ shiftWith
   -> Interval t
 shiftWith f n (Interval (a, b)) = mkInterval (a `f` n) (b `f` n)
 
+-- | Convert numerical interval from absolute to relative time.
+toRel :: (Num rel) => (abs -> abs -> rel) -> Interval abs -> Interval rel 
+toRel diff (Interval (from, to)) = Interval (0, to `diff` from)
+
 ------------------------------------------------------------------------------
 -- * Relationships
 

@@ -966,9 +966,8 @@ shrink diff = unsafeFromList . shrink' . toList
   where
     shrink' events = zipWith Event intervals events
       where
-        intervals = scanl1 step (map (toRel . Event.getInterval) events)
+        intervals = scanl1 step (map (toRel diff . Event.getInterval) events)
         step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
-        toRel (Interval (from, to)) = Interval (0, to `diff` from)
 
 -- | /O(N)./ Intersection of two timelines with a custom combining function
 -- that takes into account intersection interval and both source events

@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 02a690d26e94ee51df75a2b3cc9469e1a49f92b854b9a01b00a53cedda9eec79
+-- hash: 3c8a6f1bcbcaeb2d28746a7710c251d7daf5ae41e18191edc879d5275943e24f
 
 name:           pftime
 version:        0.1.0.0
@@ -62,6 +62,7 @@ library
     , criterion
     , extra >=1.7.7
     , hspec
+    , random
     , split
     , syb
     , text
@@ -84,6 +85,7 @@ executable pftime-exe
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , text
@@ -111,6 +113,7 @@ test-suite doctests
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , template-haskell
@@ -137,6 +140,7 @@ test-suite pftime-test
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , text
@@ -146,9 +150,12 @@ test-suite pftime-test
 
 benchmark naive-benchmark
   type: exitcode-stdio-1.0
-  main-is: Naive.hs
+  main-is: Main.hs
   other-modules:
+      Helpers
+      Naive
       Strict
+      Test
       Paths_pftime
   hs-source-dirs:
       benchmarks
@@ -161,6 +168,7 @@ benchmark naive-benchmark
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , text

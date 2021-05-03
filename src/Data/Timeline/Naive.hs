@@ -909,12 +909,12 @@ findIntersection i xs = asum (map (Interval.intersect i) xs)
 -- See 'withReference_' for a specialized version.
 withReference
   :: (Num rel, Ord rel)
-  => (abs -> abs -> rel)
-  -> (abs -> rel -> abs)
-  -> (a -> b -> c)
-  -> Timeline abs a
-  -> Timeline rel b
-  -> Timeline abs c
+  => (abs -> abs -> rel) -- ^ time difference
+  -> (abs -> rel -> abs) -- ^ time addition
+  -> (a -> b -> c)       -- ^ payload combinator
+  -> Timeline abs a      -- ^ reference timeline 
+  -> Timeline rel b      -- ^ target timeline
+  -> Timeline abs c      -- ^ target timeline overlaid over reference 
 withReference diff add f = unsafeIntersectionWithEvent combine . shrink diff
   where
     combine i x y = Event (Interval (from, to)) (f a b)
@@ -952,7 +952,7 @@ withReference_
   -> Timeline t b
 withReference_ = withReference (-) (+) (flip const)
 
--- | Shrink an (absolute) timeline by removing all the gaps between events.
+-- | /O(N)./ Shrink an (absolute) timeline by removing all the gaps between events.
 -- The result is a (relative) timeline with original (absolute) events.
 --
 -- >>> getPayload <$> shrink (-) "  xxx yyyy   zzz" :: PictoralTimeline
@@ -970,7 +970,7 @@ shrink diff = unsafeFromList . shrink' . toList
         step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
         toRel (Interval (from, to)) = Interval (0, to `diff` from)
 
--- | Intersection of two timelines with a custom combining function
+-- | /O(N)./ Intersection of two timelines with a custom combining function
 -- that takes into account intersection interval and both source events
 -- and can construct a new event with potentially different type of time.
 --

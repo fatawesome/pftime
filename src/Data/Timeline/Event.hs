@@ -1,13 +1,17 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Data.Timeline.Event where
 
 import           Data.Timeline.Interval hiding (adjacent, getInterval)
 import qualified Data.Timeline.Interval as Interval
+import Control.DeepSeq
+import GHC.Generics
 
 data Event t p = Event {
   getInterval :: Interval t,
   getPayload  :: p
-} deriving (Show, Eq, Functor)
+} deriving (Show, Eq, Functor, NFData, Generic)
 
 -- | /O(1)/.
 --

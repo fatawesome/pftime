@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 02a690d26e94ee51df75a2b3cc9469e1a49f92b854b9a01b00a53cedda9eec79
+-- hash: 54b630fa6793a9f72e42d4cef9adcb1d5023aa261b10bbe556dfd3f82d62222c
 
 name:           pftime
 version:        0.1.0.0
@@ -37,6 +37,7 @@ library
       Data.Timeline.Event
       Data.Timeline.Interval
       Data.Timeline.Lazy
+      Data.Timeline.Lazy1
       Data.Timeline.Naive
       Data.Timeline.Overlapping
       Data.Timeline.Pictoral
@@ -60,8 +61,10 @@ library
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
+    , random
     , split
     , syb
     , text
@@ -81,9 +84,11 @@ executable pftime-exe
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , text
@@ -107,10 +112,12 @@ test-suite doctests
     , base
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , doctest
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , template-haskell
@@ -134,9 +141,11 @@ test-suite pftime-test
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , text
@@ -146,9 +155,12 @@ test-suite pftime-test
 
 benchmark naive-benchmark
   type: exitcode-stdio-1.0
-  main-is: Naive.hs
+  main-is: Main.hs
   other-modules:
+      Helpers
+      Naive
       Strict
+      Test
       Paths_pftime
   hs-source-dirs:
       benchmarks
@@ -158,9 +170,11 @@ benchmark naive-benchmark
     , base
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , pftime
+    , random
     , split
     , syb
     , text

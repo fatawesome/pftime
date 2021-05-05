@@ -37,6 +37,8 @@ dependencies:
 - text
 - syb
 - criterion
+- random 
+- deepseq
 
 library:
   source-dirs: src
@@ -55,7 +57,7 @@ executables:
 benchmarks:
   naive-benchmark:
     type: exitcode-stdio-1.0
-    main: Naive.hs
+    main: Main.hs
     source-dirs: benchmarks
     ghc-options:
       - -threaded
@@ -65,6 +67,8 @@ benchmarks:
       - base
       - pftime
       - criterion
+      - random
+      - deepseq
 
 tests:
   pftime-test:

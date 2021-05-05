@@ -42,6 +42,9 @@ head :: Timeline t p -> Maybe (Event t p)
 head t@(Timeline ps fs ts)
   | isEmpty t = Nothing
   | otherwise = Just (Event (Interval (V.head fs, V.head ts)) (V.head ps))
+  
+tail :: Timeline t p -> Timeline t p
+tail (Timeline ps fs ts) = Timeline (V.tail ps) (V.tail fs) (V.tail ts)
 
 last :: Timeline t p -> Maybe (Event t p)
 last t@(Timeline ps fs ts)
@@ -100,6 +103,11 @@ singleton (Event (Interval (f, t)) p) = Timeline (V.singleton p) (V.singleton f)
 fromLists :: [p] -> [t] -> [t] -> Timeline t p
 fromLists p from to
   = fromVectors (V.fromList p) (V.fromList from) (V.fromList to)
+  
+unsafeFromEvents :: V.Vector (Event t p) -> Timeline t p
+unsafeFromEvents = error "not implemented"
+  where
+    event (Event (Interval (l, r)) p) = (p, l, r) 
 
 -- | /O(1)/ Construct Timeline from three vectors (payloads, from points, to points).
 fromVectors :: V.Vector p -> V.Vector t -> V.Vector t -> Timeline t p
@@ -425,7 +433,65 @@ mergeEventsImpl f acc as bs
     accumulateB = if V.null acc
                     then V.singleton b
                     else V.init acc V.++ V.fromList (mergeWith f (V.last acc) b)
+                    
+-- | Update events using a reference timeline schedule.
+-- All of the events from the second timeline are overlayed
+-- over events from the first timeline (reference).
+-- Gaps from both the original timeline and the reference timeline are preserved.                 
+withReference
+  :: (Num rel, Ord rel)
+  => (abs -> abs -> rel) -- ^ time difference
+  -> (abs -> rel -> abs) -- ^ time addition
+  -> (a -> b -> c)       -- ^ payload combinator
+  -> Timeline abs a      -- ^ reference timeline 
+  -> Timeline rel b      -- ^ target timeline
+  -> Timeline abs c      -- ^ target timeline overlaid over reference
+withReference diff add f as bs = fromEvents $ (unsafeIntersectionWithEvent combine . shrink diff) eventsA eventsB
+  where
+    eventsA = toEvents as
+    eventsB = toEvents bs
+    combine i x y = Event (Interval (from, to)) (f a b)
+      where
+        from = add f3 (f1 - f2)
+        to = add f3 (t1 - f2)
+        Interval (f1, t1) = i
+        Event (Interval (f2, _)) (Event (Interval (f3, _)) a) = x
+        Event _ b = y
+          
+unsafeIntersectionWithEvent
+  :: (Ord t)
+  => (Interval t -> Event t a -> Event t b -> Event t' c)
+  -> V.Vector (Event t a)
+  -> V.Vector (Event t b)
+  -> V.Vector (Event t' c)
+unsafeIntersectionWithEvent f as bs
+  | V.null as = V.empty
+  | V.null bs = V.empty 
+  | otherwise = go as bs
+  where
+    go xs ys   
+      | r1 < l2   = go (V.tail xs) ys
+      | r2 < l1   = go xs (V.tail ys)
+      | r1 <= r2  = V.cons z (go (V.tail xs) ys)
+      | otherwise = V.cons z (go as (V.tail bs))
+      where
+        x@(Event (Interval (l1, r1)) _) = V.head xs
+        y@(Event (Interval (l2, r2)) _) = V.head ys
+        i = mkInterval (max l1 l2) (min r1 r2)
+        z = f i x y
 
+-- | /O(N)./ Shrink an (absolute) timeline by removing all the gaps between events.
+-- The result is a (relative) timeline with original (absolute) events.
+shrink
+  :: (Num rel)
+  => (abs -> abs -> rel)
+  -> V.Vector (Event abs p)
+  -> V.Vector (Event rel (Event abs p))
+shrink diff events = V.zipWith Event intervals events
+  where
+    intervals = V.scanl1 step (V.map (toRel diff . getInterval) events)
+    step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur) 
+       
 
 -----------------------------------------------------------------------------
 -- * Conversion

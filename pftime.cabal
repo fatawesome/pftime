@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3c8a6f1bcbcaeb2d28746a7710c251d7daf5ae41e18191edc879d5275943e24f
+-- hash: 54b630fa6793a9f72e42d4cef9adcb1d5023aa261b10bbe556dfd3f82d62222c
 
 name:           pftime
 version:        0.1.0.0
@@ -37,6 +37,7 @@ library
       Data.Timeline.Event
       Data.Timeline.Interval
       Data.Timeline.Lazy
+      Data.Timeline.Lazy1
       Data.Timeline.Naive
       Data.Timeline.Overlapping
       Data.Timeline.Pictoral
@@ -60,6 +61,7 @@ library
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , random
@@ -82,6 +84,7 @@ executable pftime-exe
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , pftime
@@ -109,6 +112,7 @@ test-suite doctests
     , base
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , doctest
     , extra >=1.7.7
     , hspec
@@ -137,6 +141,7 @@ test-suite pftime-test
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , pftime
@@ -165,6 +170,7 @@ benchmark naive-benchmark
     , base
     , codeworld-api ==0.3.1
     , criterion
+    , deepseq
     , extra >=1.7.7
     , hspec
     , pftime

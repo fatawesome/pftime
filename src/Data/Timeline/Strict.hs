@@ -42,6 +42,9 @@ head :: Timeline t p -> Maybe (Event t p)
 head t@(Timeline ps fs ts)
   | isEmpty t = Nothing
   | otherwise = Just (Event (Interval (V.head fs, V.head ts)) (V.head ps))
+  
+tail :: Timeline t p -> Timeline t p
+tail (Timeline ps fs ts) = Timeline (V.tail ps) (V.tail fs) (V.tail ts)
 
 last :: Timeline t p -> Maybe (Event t p)
 last t@(Timeline ps fs ts)

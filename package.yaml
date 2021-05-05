@@ -37,7 +37,8 @@ dependencies:
 - text
 - syb
 - criterion
-- random
+- random 
+- deepseq
 
 library:
   source-dirs: src
@@ -67,6 +68,7 @@ benchmarks:
       - pftime
       - criterion
       - random
+      - deepseq
 
 tests:
   pftime-test:

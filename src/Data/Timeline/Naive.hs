@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module : Timeline
@@ -13,6 +14,7 @@ module Data.Timeline.Naive where
 import           Prelude                   hiding (drop, dropWhile, filter,
                                             null, reverse, subtract, take,
                                             takeWhile)
+import Control.DeepSeq
 import qualified Prelude
 
 import           Data.Foldable             (asum)
@@ -43,7 +45,7 @@ import           GHC.Base                  (join)
 -- > not (haveConflicts (toList t))
 newtype Timeline t p = Timeline
   { getTimeline :: [Event t p] -- ^ Sorted list of intervals.
-  } deriving (Show, Eq, Functor)
+  } deriving (Show, Eq, Functor, NFData)
 
 instance Ord t => Semigroup (Timeline t p) where
   (<>) = union (\_old new -> new)

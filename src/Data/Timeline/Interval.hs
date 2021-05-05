@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module : Interval
@@ -10,6 +11,7 @@ module Data.Timeline.Interval where
 
 import           Data.Maybe (catMaybes, isJust)
 import           Prelude    hiding (length, subtract)
+import Control.DeepSeq
 
 -- $setup
 --
@@ -22,7 +24,7 @@ import           Prelude    hiding (length, subtract)
 -- | Temporal interval is a pair of points which represent bounded time period.
 newtype Interval t = Interval {
   getInterval :: (t, t) -- ^ A pair of points in time.
-} deriving (Eq, Ord, Show)
+} deriving (Eq, Ord, Show, NFData)
 
 -----------------------------------------------------------------------------
 -- * Construction

@@ -1,11 +1,30 @@
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module Data.Timeline.Lazy where
 
 import qualified Data.Timeline.Strict as Strict
+import qualified Data.Timeline.Naive  as Naive
+import           Prelude                        hiding (head, tail)
 import           Data.Timeline.Event            hiding (mergeWith) 
+import           Data.Timeline.Interval         hiding (getInterval)
+
+-- $setup
+-- >>> :set -XOverloadedStrings
+-- >>> import Prelude hiding (take, takeWhile, subtract, null, filter, drop, dropWhile)
+-- >>> import Data.Timeline.Pictoral
+-- >>> import Data.Timeline.Event
+-- $setup
 
 data Timeline t p
   = Empty
   | Chunk !(Strict.Timeline t p) (Timeline t p)
+  deriving (Functor, Foldable, Traversable)
+  
+instance Integral t => Show (Timeline t Char) where
+  show Empty       = ""
+  show (Chunk c t) = show c <> ", " <> show t 
 
 -----------------------------------------------------------------------------
 -- * Accessors
@@ -31,17 +50,24 @@ unsafeTail = error "not implemented"
 
 -- | /O(1)./ Get timeline starting time.
 startTime :: Timeline t p -> Maybe t
-startTime = error "not implemented"
+startTime t = case head t of
+  Nothing -> Nothing
+  Just (Event (Interval (from, _)) _) -> Just from  
 
 unsafeStartTime :: Timeline t p -> t
-unsafeStartTime = error "not implemented"
+unsafeStartTime t = from
+  where
+    Event (Interval (from, _)) _ = unsafeHead t 
 
 -- | /O(N)./ Get timeline ending time.
 endTime :: Timeline t p -> Maybe t
-endTime = error "not implemented"
+endTime Empty = Nothing
+endTime t = Just $ unsafeEndTime t
 
 unsafeEndTime :: Timeline t p -> t
-unsafeEndTime = error "not implemented"
+unsafeEndTime Empty           = error "unsafeEndTime does not accept empty timeline as input, see `endTime`."
+unsafeEndTime (Chunk c Empty) = end (Strict.unsafeLast c)
+unsafeEndTime (Chunk _ t)     = unsafeEndTime t
 
 -- | /O(N)./ Get timeline bounds. 
 timeBounds :: Timeline t p -> Maybe (t, t)
@@ -57,10 +83,28 @@ empty :: Timeline t p
 empty = Empty
 
 singleton :: Event t p -> Timeline t p
-singleton = error "not implemented"
+singleton e = Chunk (Strict.singleton e) Empty
 
+-- | /O(N)./ Create timeline from list without preserving structure invariants.
+-- Useful if event list already has no conflicts and is sorted.   
+unsafeFromList :: [Event t p] -> Timeline t p
+unsafeFromList = accumulate empty
+  where
+    accumulate :: Timeline t p -> [Event t p] -> Timeline t p
+    accumulate Empty []     = Empty
+    accumulate Empty (e:es) = accumulate (singleton e) es
+    accumulate t []         = t 
+    accumulate (Chunk c t) (e:es)
+      | Strict.size c < chunkSize = accumulate (Chunk (Strict.unsafeSnoc c e) Empty) es
+      | otherwise                 = Chunk c (accumulate t (e:es))  
 
-
+-- | /O(N)./ Create Lazy timeline from Naive.
+--
+-- >>> let t = "xyxyxyxyxyxy" :: PictoralTimeline
+-- >>> fromNaive t
+fromNaive :: Naive.Timeline t p -> Timeline t p
+fromNaive (Naive.Timeline events) = unsafeFromList events 
+      
 -----------------------------------------------------------------------------
 -- * Combination
 
@@ -81,6 +125,9 @@ difference = error "not implemented"
 
 -----------------------------------------------------------------------------
 -- * Helpers    
+
+chunkSize :: Int
+chunkSize = 8
 
 tuplify2 :: Maybe [a] -> Maybe (a, a)
 tuplify2 (Just [x, y]) = Just (x, y)

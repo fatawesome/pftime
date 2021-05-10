@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 54b630fa6793a9f72e42d4cef9adcb1d5023aa261b10bbe556dfd3f82d62222c
+-- hash: 63fcb904ac4438dfa9a8e3e6493457b0e859f2c3f72fcd4d1264a088f94b5226
 
 name:           pftime
 version:        0.1.0.0
@@ -37,7 +37,6 @@ library
       Data.Timeline.Event
       Data.Timeline.Interval
       Data.Timeline.Lazy
-      Data.Timeline.Lazy1
       Data.Timeline.Naive
       Data.Timeline.Overlapping
       Data.Timeline.Pictoral

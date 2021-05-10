@@ -35,6 +35,9 @@ instance Integral t => Show (Timeline t Char) where
 -----------------------------------------------------------------------------
 -- * Accessors
 
+size :: Timeline t p -> Int
+size t = V.length $ timelinePayload t
+
 isEmpty :: Timeline t p -> Bool
 isEmpty (Timeline ps froms tos) = V.null ps || V.null froms || V.null tos
 
@@ -198,6 +201,9 @@ insertWith
   -> Timeline t p
   -> Timeline t p
 insertWith f event timeline = fromNaive $ Naive.insert f event (toNaive timeline)
+
+unsafeSnoc :: Timeline t p -> Event t p -> Timeline t p
+unsafeSnoc (Timeline ps fs ts) (Event (Interval (f, t)) p) = Timeline (V.snoc ps p) (V.snoc fs f) (V.snoc ts t)  
 
 -----------------------------------------------------------------------------
 -- * Query

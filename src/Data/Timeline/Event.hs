@@ -22,6 +22,12 @@ fromTuple (i, p) = Event i p
 fromTriple :: p -> t -> t -> Event t p
 fromTriple p f t = Event (Interval (f, t)) p
 
+start :: Event t p -> t
+start (Event (Interval (f, _)) _) = f
+  
+end :: Event t p -> t
+end (Event (Interval (_, t)) _) = t
+
 -- | Convert Event to tuple.
 toTuple :: Event t p -> (t, t, p)
 toTuple (Event (Interval (f, t)) p) = (f, t, p)
@@ -123,3 +129,17 @@ adjacent
   -> Bool
 adjacent e1 e2
   = Interval.adjacent (getInterval e1) (getInterval e2) && getPayload e1 == getPayload e2
+
+
+eventCreator :: Ord t => t -> t -> p -> Event t p
+eventCreator t t' = Event (mkInterval t t') 
+
+eventListWithoutOverlapsOfLength :: Int -> [Event Int [Char]]
+eventListWithoutOverlapsOfLength n 
+  | n >= 0 = [eventCreator t (t+1) "SAMPLE_TEXT" | t <- [0 .. n-1] ]
+  | otherwise = []
+
+eventCreatorN'withOverlapping :: Int -> [Event Int [Char]]
+eventCreatorN'withOverlapping n 
+  | n >= 0 = [eventCreator (t `mod` 97) ( (2*t) `mod` 113) "SAMPLE_TEXT" | t <- [0 .. n-1] ]
+  | otherwise = []

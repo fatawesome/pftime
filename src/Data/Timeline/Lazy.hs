@@ -9,6 +9,7 @@ import qualified Data.Timeline.Naive  as Naive
 import           Prelude                        hiding (head, tail)
 import           Data.Timeline.Event            hiding (mergeWith) 
 import           Data.Timeline.Interval         hiding (getInterval)
+import           Data.List (sortOn)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -87,8 +88,8 @@ singleton e = Chunk (Strict.singleton e) Empty
 
 -- | /O(N)./ Create timeline from list without preserving non-overlapping invariant.
 -- Useful if event list already has no conflicts and is sorted.   
-unsafeFromList :: [Event t p] -> Timeline t p
-unsafeFromList = accumulate empty
+unsafeFromList :: Ord t => [Event t p] -> Timeline t p
+unsafeFromList = accumulate empty . sortOn getInterval
   where
     accumulate :: Timeline t p -> [Event t p] -> Timeline t p
     accumulate Empty []     = Empty
@@ -102,7 +103,7 @@ unsafeFromList = accumulate empty
 --
 -- >>> let t = "xyxyxyxyxyxy" :: PictoralTimeline
 -- >>> fromNaive t
-fromNaive :: Naive.Timeline t p -> Timeline t p
+fromNaive :: Ord t => Naive.Timeline t p -> Timeline t p
 fromNaive (Naive.Timeline events) = unsafeFromList events 
       
 -----------------------------------------------------------------------------

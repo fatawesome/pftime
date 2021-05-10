@@ -20,7 +20,7 @@ import           Data.Timeline.Interval         hiding (getInterval)
 data Timeline t p
   = Empty
   | Chunk !(Strict.Timeline t p) (Timeline t p)
-  deriving (Functor, Foldable, Traversable)
+  deriving (Functor, Foldable, Traversable, Eq)
   
 instance Integral t => Show (Timeline t Char) where
   show Empty       = ""
@@ -85,7 +85,7 @@ empty = Empty
 singleton :: Event t p -> Timeline t p
 singleton e = Chunk (Strict.singleton e) Empty
 
--- | /O(N)./ Create timeline from list without preserving structure invariants.
+-- | /O(N)./ Create timeline from list without preserving non-overlapping invariant.
 -- Useful if event list already has no conflicts and is sorted.   
 unsafeFromList :: [Event t p] -> Timeline t p
 unsafeFromList = accumulate empty

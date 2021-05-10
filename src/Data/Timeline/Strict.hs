@@ -24,7 +24,7 @@ data Timeline t p = Timeline
   { timelinePayload :: !(V.Vector p)
   , timelineFrom    :: !(V.Vector t)
   , timelineTo      :: !(V.Vector t) -- TODO investigate the unboxed vectors + type-level functions
-  } deriving (Functor, Foldable, Traversable)
+  } deriving (Functor, Foldable, Traversable, Eq)
 
 instance (Ord t, Num t, Integral t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline

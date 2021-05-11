@@ -12,6 +12,7 @@ module Data.Timeline.Interval where
 import           Data.Maybe (catMaybes, isJust)
 import           Prelude    hiding (length, subtract)
 import Control.DeepSeq
+import Test.QuickCheck
 
 -- $setup
 --
@@ -23,6 +24,10 @@ import Control.DeepSeq
 
 -- | Temporal interval is a pair of points which represent bounded time period.
 newtype Interval t = Interval (t, t) deriving (Eq, Ord, Show, NFData)
+
+instance (Ord t, Arbitrary t) => Arbitrary (Interval t) where
+  arbitrary = Interval <$> arbitrary
+  
 
 -----------------------------------------------------------------------------
 -- * Construction

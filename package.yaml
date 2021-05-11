@@ -39,6 +39,8 @@ dependencies:
 - criterion
 - random 
 - deepseq
+- Chart
+- Chart-cairo
 
 library:
   source-dirs: src
@@ -69,6 +71,8 @@ benchmarks:
       - criterion
       - random
       - deepseq
+      - Chart
+      - Chart-cairo
 
 tests:
   pftime-test:

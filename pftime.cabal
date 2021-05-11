@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63fcb904ac4438dfa9a8e3e6493457b0e859f2c3f72fcd4d1264a088f94b5226
+-- hash: 4754ca9d164569cdc6ef4339f367fa70956a85c09417d20a4aa5a514b7da19ce
 
 name:           pftime
 version:        0.1.0.0
@@ -56,7 +56,9 @@ library
   hs-source-dirs:
       src
   build-depends:
-      QuickCheck
+      Chart
+    , Chart-cairo
+    , QuickCheck
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
@@ -79,7 +81,9 @@ executable pftime-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      QuickCheck
+      Chart
+    , Chart-cairo
+    , QuickCheck
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
@@ -106,7 +110,9 @@ test-suite doctests
   hs-source-dirs:
       test
   build-depends:
-      Glob
+      Chart
+    , Chart-cairo
+    , Glob
     , QuickCheck
     , base
     , codeworld-api ==0.3.1
@@ -136,7 +142,9 @@ test-suite pftime-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      QuickCheck
+      Chart
+    , Chart-cairo
+    , QuickCheck
     , base >=4.7 && <5
     , codeworld-api ==0.3.1
     , criterion
@@ -158,6 +166,7 @@ benchmark naive-benchmark
   other-modules:
       Helpers
       Naive
+      Naive.Insert
       Strict
       Test
       Paths_pftime
@@ -165,7 +174,9 @@ benchmark naive-benchmark
       benchmarks
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      QuickCheck
+      Chart
+    , Chart-cairo
+    , QuickCheck
     , base
     , codeworld-api ==0.3.1
     , criterion

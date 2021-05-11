@@ -25,6 +25,7 @@ import           Data.Timeline.Interval    hiding (intersect, shiftWith)
 import qualified Data.Timeline.Interval    as Interval
 import           Data.Timeline.Overlapping as Overlapping
 import           GHC.Base                  (join)
+import           Test.QuickCheck           hiding (shrink)
 
 
 -- $setup
@@ -52,6 +53,9 @@ instance Ord t => Semigroup (Timeline t p) where
 
 instance Ord t => Monoid (Timeline t p) where
   mempty = empty
+  
+instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Timeline t p) where
+  arbitrary = Timeline <$> arbitraryEventList
 
 -----------------------------------------------------------------------------
 -- * Construction

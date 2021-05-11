@@ -5,13 +5,23 @@ module Data.Timeline.Event where
 
 import           Data.Timeline.Interval hiding (adjacent)
 import qualified Data.Timeline.Interval as Interval
-import Control.DeepSeq
-import GHC.Generics
+import           Control.DeepSeq 
+import           GHC.Generics
+import           Test.QuickCheck
 
 data Event t p = Event {
   getInterval :: Interval t,
   getPayload  :: p
 } deriving (Show, Eq, Functor, NFData, Generic)
+
+instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Event t p) where
+  arbitrary = Event <$> arbitrary <*> arbitrary
+
+arbitraryEventList :: (Ord t, Arbitrary t, Arbitrary p) => Gen [Event t p]
+arbitraryEventList = sized $ \n -> 
+  frequency
+    [ (1, return [])
+    , (n, (:) <$> arbitrary <*> arbitraryEventList)]
 
 -- | /O(1)/.
 --

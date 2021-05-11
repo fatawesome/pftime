@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Data.Timeline.Event where
 
-import           Data.Timeline.Interval hiding (adjacent, getInterval)
+import           Data.Timeline.Interval hiding (adjacent)
 import qualified Data.Timeline.Interval as Interval
 import Control.DeepSeq
 import GHC.Generics
@@ -43,17 +43,17 @@ sliceEventBound interval (Event oldInterval payload) = Event (sliceBound interva
 
 -- |
 --
--- prop> mergeWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 3 6) 'y') == [(Event (mkInterval 0 3) 'x'), (Event (mkInterval 3 6) 'y')]
--- prop> mergeWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 1 4) 'y') == [(Event (mkInterval 0 1) 'x'), (Event (mkInterval 1 3) 'y'), (Event (mkInterval 3 4) 'y')]
--- prop> mergeWith (\a b -> b) (Event (mkInterval 0 2) 'x') (Event (mkInterval 0 1) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'x')]
--- prop> mergeWith (\a b -> b) (Event (mkInterval 0 1) 'x') (Event (mkInterval 0 2) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'y')]
-mergeWith
+-- prop> mergeEventsWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 3 6) 'y') == [(Event (mkInterval 0 3) 'x'), (Event (mkInterval 3 6) 'y')]
+-- prop> mergeEventsWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 1 4) 'y') == [(Event (mkInterval 0 1) 'x'), (Event (mkInterval 1 3) 'y'), (Event (mkInterval 3 4) 'y')]
+-- prop> mergeEventsWith (\a b -> b) (Event (mkInterval 0 2) 'x') (Event (mkInterval 0 1) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'x')]
+-- prop> mergeEventsWith (\a b -> b) (Event (mkInterval 0 1) 'x') (Event (mkInterval 0 2) 'y') == [(Event (mkInterval 0 1) 'y'), (Event (mkInterval 1 2) 'y')]
+mergeEventsWith
   :: Ord t
   => (p -> p -> p)
   -> Event t p
   -> Event t p
   -> [Event t p]
-mergeWith f x@(Event (Interval (x1, x2)) xp) y@(Event (Interval (y1, y2)) yp)
+mergeEventsWith f x@(Event (Interval (x1, x2)) xp) y@(Event (Interval (y1, y2)) yp)
   -- xxx
   --    yyy
   | x2 <= y1 = [x, y]

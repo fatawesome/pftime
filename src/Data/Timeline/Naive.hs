@@ -589,47 +589,47 @@ union f (Timeline xs) (Timeline ys) = fromListWith f (xs <> ys)
 -- | Merge two timelines. Choose second in case of conflicts.
 -- For general implementation see /mergeWith/.
 merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
-merge = Data.Timeline.Naive.mergeWith (\_ b -> b)
+merge = mergeWith (\_ b -> b)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) "xxx" "" :: PictoralTimeline
 -- xxx
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) "xxx" "   yyy" :: PictoralTimeline
 -- xxxyyy
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" "yyy" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) "xxx" "yyy" :: PictoralTimeline
 -- yyy
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxx" " yyy" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) "xxx" " yyy" :: PictoralTimeline
 -- xyyy
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) " xxx" "yyy" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) " xxx" "yyy" :: PictoralTimeline
 -- yyyx
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xx" "   yy" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) "xx" "   yy" :: PictoralTimeline
 -- xx yy
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) " x y z" "x y z" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) " x y z" "x y z" :: PictoralTimeline
 -- xxyyzz
 --
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
+-- >>> mergeWith (\a b -> b) "xxxxx" " a b" :: PictoralTimeline
 -- xaxbx
 --
 -- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
 -- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
+-- >>> mergeWith (\a b -> b) t1 t2
 -- xxaaaybbbzccc
 --
 -- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
 -- >>> let t2 = " aa bb cc" :: PictoralTimeline
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
+-- >>> mergeWith (\a b -> b) t1 t2
 -- xaaxbbxcc
 --
 -- >>> let t1 = " aa bb cc" :: PictoralTimeline
 -- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
--- >>> Data.Timeline.Naive.mergeWith (\a b -> b) t1 t2
+-- >>> mergeWith (\a b -> b) t1 t2
 -- xxxxxxxxc
 mergeWith
   :: Ord t
@@ -676,7 +676,7 @@ _reversedInsert
   -> Timeline t p
   -> Timeline t p
 _reversedInsert _    el (Timeline [])     = singleton el
-_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (Event.mergeWith func z el) ++ zs
+_reversedInsert func el (Timeline (z:zs)) = Timeline $ Prelude.reverse (mergeEventsWith func z el) ++ zs
 
 
 -- TODO: optimization

@@ -22,9 +22,7 @@ import Control.DeepSeq
 -- * Interval type
 
 -- | Temporal interval is a pair of points which represent bounded time period.
-newtype Interval t = Interval {
-  getInterval :: (t, t) -- ^ A pair of points in time.
-} deriving (Eq, Ord, Show, NFData)
+newtype Interval t = Interval (t, t) deriving (Eq, Ord, Show, NFData)
 
 -----------------------------------------------------------------------------
 -- * Construction

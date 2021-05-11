@@ -8,7 +8,7 @@ import           Prelude                hiding (drop, dropWhile, filter, head, l
 import           Data.String            (IsString (..))
 import           Data.Generics.Aliases
 import           Data.Timeline.Event
-import           Data.Timeline.Interval hiding (getInterval)
+import           Data.Timeline.Interval
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
@@ -433,10 +433,10 @@ mergeEventsImpl f acc as bs
     b = V.head bs
     accumulateA = if V.null acc
                     then V.singleton a
-                    else V.init acc V.++ V.fromList (mergeWith f a (V.last acc))
+                    else V.init acc V.++ V.fromList (mergeEventsWith f a (V.last acc))
     accumulateB = if V.null acc
                     then V.singleton b
-                    else V.init acc V.++ V.fromList (mergeWith f (V.last acc) b)
+                    else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
                     
 -- | Update events using a reference timeline schedule.
 -- All of the events from the second timeline are overlayed

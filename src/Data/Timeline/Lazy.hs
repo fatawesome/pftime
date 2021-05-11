@@ -7,8 +7,8 @@ module Data.Timeline.Lazy where
 import qualified Data.Timeline.Strict as Strict
 import qualified Data.Timeline.Naive  as Naive
 import           Prelude                        hiding (head, tail)
-import           Data.Timeline.Event            hiding (mergeWith) 
-import           Data.Timeline.Interval         hiding (getInterval)
+import           Data.Timeline.Event 
+import           Data.Timeline.Interval        
 import           Data.List (sortOn)
 
 -- $setup

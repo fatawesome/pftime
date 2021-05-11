@@ -2,7 +2,7 @@ module Visuals.MergeWith where
 
 import CodeWorld hiding (Event)
 import Visuals.Helpers
-import Data.Timeline.Event hiding (mergeWith)
+import Data.Timeline.Event
 import Data.Timeline.Interval
 import Data.Timeline.Naive
 

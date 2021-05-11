@@ -86,6 +86,16 @@ empty = Empty
 singleton :: Event t p -> Timeline t p
 singleton e = Chunk (Strict.singleton e) Empty
 
+fromListWith :: Ord t => (p -> p -> p) -> [Event t p] -> Timeline t p
+fromListWith f = accumulate empty . sortOn getInterval
+  where
+    accumulate Empty []     = Empty
+    accumulate Empty (e:es) = accumulate (singleton e) es
+    accumulate t []         = t
+    accumulate (Chunk c t) (e:es)
+      | Strict.size c < chunkSize = accumulate (Chunk (Strict.insertWith f e c) Empty) es
+      | otherwise                 = Chunk c (accumulate t (e:es)) 
+    
 -- | /O(N)./ Create timeline from list without preserving non-overlapping invariant.
 -- Useful if event list already has no conflicts and is sorted.   
 unsafeFromList :: Ord t => [Event t p] -> Timeline t p
@@ -97,14 +107,18 @@ unsafeFromList = accumulate empty . sortOn getInterval
     accumulate t []         = t 
     accumulate (Chunk c t) (e:es)
       | Strict.size c < chunkSize = accumulate (Chunk (Strict.unsafeSnoc c e) Empty) es
-      | otherwise                 = Chunk c (accumulate t (e:es))  
+      | otherwise                 = Chunk c (accumulate t (e:es))
 
 -- | /O(N)./ Create Lazy timeline from Naive.
---
--- >>> let t = "xyxyxyxyxyxy" :: PictoralTimeline
--- >>> fromNaive t
 fromNaive :: Ord t => Naive.Timeline t p -> Timeline t p
 fromNaive (Naive.Timeline events) = unsafeFromList events 
+
+-- | /O(N)./ Create Lazy timeline from Strict.
+fromStrict :: Ord t => Strict.Timeline t p -> Timeline t p
+fromStrict = fromNaive . Strict.toNaive
+
+insertWith :: Ord t => (p -> p -> p) -> Event t p -> Timeline t p -> Timeline t p
+insertWith f event timeline = error "not implemented"
       
 -----------------------------------------------------------------------------
 -- * Combination
@@ -113,7 +127,10 @@ merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 merge = mergeWith (\_ b -> b)
 
 mergeWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
-mergeWith = error "not implemented"
+mergeWith _ Empty Empty = Empty
+mergeWith _ t     Empty = t
+mergeWith _ Empty t     = t
+mergeWith f (Chunk cl tl) (Chunk cr tr) = error "not implemnted" 
 
 intersect :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 intersect = intersectWith (\_ b -> b)

@@ -192,15 +192,13 @@ unsafeMapTimestampMonotonic f tl = tl
 -- >>> event = Event (mkInterval 1 5) 'b'
 -- >>> insertWith f event t
 --  bbbb
---
--- TODO: rewrite not using lazy timeline.
 insertWith
   :: Ord t
   => (p -> p -> p)
   -> Event t p
   -> Timeline t p
   -> Timeline t p
-insertWith f event timeline = fromNaive $ Naive.insert f event (toNaive timeline)
+insertWith f event timeline = mergeW f timeline (singleton event) 
 
 unsafeSnoc :: Timeline t p -> Event t p -> Timeline t p
 unsafeSnoc (Timeline ps fs ts) (Event (Interval (f, t)) p) = Timeline (V.snoc ps p) (V.snoc fs f) (V.snoc ts t)  

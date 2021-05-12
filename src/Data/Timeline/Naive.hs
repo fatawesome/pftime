@@ -55,7 +55,7 @@ instance Ord t => Monoid (Timeline t p) where
   mempty = empty
   
 instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Timeline t p) where
-  arbitrary = Timeline <$> arbitraryEventList
+  arbitrary = fromListWith (\_ b -> b) <$> arbitraryEventList
 
 -----------------------------------------------------------------------------
 -- * Construction

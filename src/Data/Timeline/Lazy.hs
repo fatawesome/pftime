@@ -26,6 +26,10 @@ data Timeline t p
 instance Integral t => Show (Timeline t Char) where
   show Empty       = ""
   show (Chunk c t) = show c <> ", " <> show t 
+  
+-- TODO: smart constructor
+chunk :: TImeline t p
+chunk = _
 
 -----------------------------------------------------------------------------
 -- * Accessors
@@ -113,9 +117,9 @@ unsafeFromList = accumulate empty . sortOn getInterval
 fromNaive :: Ord t => Naive.Timeline t p -> Timeline t p
 fromNaive (Naive.Timeline events) = unsafeFromList events 
 
--- | /O(N)./ Create Lazy timeline from Strict.
-fromStrict :: Ord t => Strict.Timeline t p -> Timeline t p
-fromStrict = fromNaive . Strict.toNaive
+-- | /O(1)./ Create Lazy timeline from Strict.
+fromStrict :: Strict.Timeline t p -> Timeline t p
+fromStrict t = Chunk t Empty 
 
 insertWith :: Ord t => (p -> p -> p) -> Event t p -> Timeline t p -> Timeline t p
 insertWith f event timeline = error "not implemented"

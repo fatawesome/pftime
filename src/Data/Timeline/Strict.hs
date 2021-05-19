@@ -306,17 +306,6 @@ binarySearchIndices interval es = case go interval es of
 -----------------------------------------------------------------------------
 -- * Updates
 
--- | /O(1)/ Delete first /n/ events from the timeline.
-drop
-  :: Int
-  -> Timeline t p
-  -> Timeline t p
-drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
-
--- | /O(n)/. Delete interval from the timeline.
-delete :: Ord t => Interval t -> Timeline t p -> Timeline t p
-delete i t = fromEvents $ deleteEvents i (toEvents t)
-
 -- | /O(n)/. Delete interval from vector of events.
 deleteEvents :: Ord t => Interval t -> V.Vector (Event t p) -> V.Vector (Event t p)
 deleteEvents interval events = delete' (binarySearchIndices interval events) events
@@ -328,7 +317,41 @@ deleteEvents interval events = delete' (binarySearchIndices interval events) eve
         rightBound = sliceEventBound interval (es V.! right)
         leftPart   = leftBound `V.cons` V.unsafeInit (fst (V.splitAt left es))
         rightPart  = V.unsafeTail (snd $ V.splitAt right es) `V.snoc` rightBound
+        
 
+-----------------------------------------------------------------------------
+-- * Extracting sub-timelines.
+
+-- | /O(1)/. Take first /n/ events from timeline.
+take :: Int -> Timeline t p -> Timeline t p
+take n (Timeline ps fs ts) = Timeline (V.take n ps) (V.take n fs) (V.take n ts)
+
+-- | /O(1)/. Delete first /n/ events from the timeline.
+drop :: Int -> Timeline t p -> Timeline t p
+drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
+
+-- | /O(n)/. Delete interval from the timeline.
+delete :: Ord t => Interval t -> Timeline t p -> Timeline t p
+delete i t = fromEvents $ deleteEvents i (toEvents t)
+
+-- | /O(1)/. Split timeline on index of event.
+splitAtIndex :: Int -> Timeline t p -> (Timeline t p, Timeline t p)
+splitAtIndex n (Timeline ps fs ts) = (Timeline leftPs leftFs leftTs, Timeline rightPs rightFs rightTs)
+  where
+    (leftPs, rightPs) = V.splitAt n ps
+    (leftFs, rightFs) = V.splitAt n fs
+    (leftTs, rightTs) = V.splitAt n ts
+
+splitAtTime :: t -> Timeline t p -> (Timeline t p, Timeline t p)
+splitAtTime = error "not implemented"
+
+toChunksOfSize :: Ord t => Int -> Timeline t p -> [Timeline t p]
+toChunksOfSize n t
+  | isEmpty t = []
+  | otherwise = chunk : toChunksOfSize n remaining
+  where
+    (chunk, remaining) = splitAtIndex n t
+    
 
 -----------------------------------------------------------------------------
 -- * Combinations

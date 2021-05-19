@@ -27,9 +27,24 @@ instance Integral t => Show (Timeline t Char) where
   show Empty       = ""
   show (Chunk c t) = show c <> ", " <> show t 
   
--- TODO: smart constructor
-chunk :: TImeline t p
-chunk = _
+-- $invariant
+strictInvariant :: Timeline t p -> Bool
+strictInvariant Empty = True
+strictInvariant (Chunk c t)
+  | Strict.size c > 0 = strictInvariant t
+  | otherwise = error "Data.Timeline.Naive: invariant violation"
+  
+lazyInvariant :: Timeline t p -> Timeline t p
+lazyInvariant Empty = Empty
+lazyInvariant (Chunk c t)
+  | Strict.size c > 0 = Chunk c (lazyInvariant t)
+  | otherwise = error "Data.Timeline.Naive: invariant violation"       
+  
+-- | Smart constructor for chunk. Preserves invariants.
+chunk :: Strict.Timeline t p -> Timeline t p -> Timeline t p 
+chunk x t
+  | Strict.size x == 0 = t
+  | otherwise = Chunk x t
 
 -----------------------------------------------------------------------------
 -- * Accessors
@@ -121,11 +136,20 @@ fromNaive (Naive.Timeline events) = unsafeFromList events
 fromStrict :: Strict.Timeline t p -> Timeline t p
 fromStrict t = Chunk t Empty 
 
-insertWith :: Ord t => (p -> p -> p) -> Event t p -> Timeline t p -> Timeline t p
-insertWith f event timeline = error "not implemented"
+fromStricts :: [Strict.Timeline t p] -> Timeline t p
+fromStricts = foldr chunk Empty
       
 -----------------------------------------------------------------------------
 -- * Combination
+
+unsafeConcat :: Timeline t p -> Timeline t p -> Timeline t p
+unsafeConcat Empty Empty = Empty
+unsafeConcat Empty b     = b
+unsafeConcat a Empty     = a
+unsafeConcat (Chunk a _) (Chunk b bs) = Chunk a bs
+
+insertWith :: Ord t => (p -> p -> p) -> Event t p -> Timeline t p -> Timeline t p
+insertWith f event timeline = error "not implemented"
 
 merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 merge = mergeWith (\_ b -> b)
@@ -134,8 +158,27 @@ mergeWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline 
 mergeWith _ Empty Empty = Empty
 mergeWith _ t     Empty = t
 mergeWith _ Empty t     = t
-mergeWith f (Chunk cl tl) (Chunk cr tr) = error "not implemnted" 
+mergeWith f (Chunk cl tl) (Chunk cr tr) = case merged of
+  Empty             -> Empty
+  Chunk c remaining -> chunk c (mergeWith f tl tr)
+    where
+      leastTail  = compare (startTime tl) (startTime tr)
+      remainings =  
+  where
+    merged = mergeChunks f cl cr
 
+mergeChunks 
+  :: Ord t
+  => (p -> p -> p) 
+  -> Strict.Timeline t p
+  -> Strict.Timeline t p 
+  -> Timeline t p
+mergeChunks f a b
+  | Strict.size a == 0 && Strict.size b == 0 = Empty
+  | Strict.size a == 0 = chunk b Empty
+  | Strict.size b == 0 = chunk a Empty
+  | otherwise = fromStricts $ Strict.toChunksOfSize chunkSize (Strict.mergeW f a b) 
+    
 intersect :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 intersect = intersectWith (\_ b -> b)
 

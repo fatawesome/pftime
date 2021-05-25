@@ -14,6 +14,9 @@ data Event t p = Event {
   getPayload  :: p
 } deriving (Show, Eq, Functor, NFData, Generic)
 
+instance (Ord t, Eq p) => Ord (Event t p) where
+  x `compare` y = min (end x) (end y) `compare` max (start x) (start y) 
+
 instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Event t p) where
   arbitrary = Event <$> arbitrary <*> arbitrary
 

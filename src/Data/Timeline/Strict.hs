@@ -8,7 +8,7 @@ import           Prelude                hiding (drop, dropWhile, filter, head, l
 import           Data.String            (IsString (..))
 import           Data.Generics.Aliases
 import           Data.Timeline.Event
-import           Data.Timeline.Interval
+import           Data.Timeline.Interval hiding (overlaps)
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
@@ -26,7 +26,7 @@ data Timeline t p = Timeline
   , timelineTo      :: !(V.Vector t) -- TODO investigate the unboxed vectors + type-level functions
   } deriving (Functor, Foldable, Traversable, Eq)
 
-instance (Ord t, Num t, Integral t) => IsString (Timeline t Char) where
+instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline
 
 instance Integral t => Show (Timeline t Char) where
@@ -87,6 +87,15 @@ bounds x
 
 unsafeBounds :: Timeline t p -> (t, t)
 unsafeBounds x = (unsafeStartTime x, unsafeEndTime x)
+
+-----------------------------------------------------------------------------
+-- * Predicates
+
+overlaps :: Ord t => Timeline t p -> Timeline t p -> Bool
+overlaps x y
+  | isEmpty x || isEmpty y = False
+  | otherwise = unsafeStartTime x < unsafeEndTime y && unsafeStartTime y < unsafeEndTime x
+
 -----------------------------------------------------------------------------
 -- * Construction
 
@@ -351,7 +360,13 @@ toChunksOfSize n t
   | otherwise = chunk : toChunksOfSize n remaining
   where
     (chunk, remaining) = splitAtIndex n t
-    
+
+shiftWith  
+  :: (t -> t -> t)
+  -> t
+  -> Timeline t p
+  -> Timeline t p
+shiftWith f n (Timeline ps fs ts) = Timeline ps (V.map (f n) fs) (V.map (f n) ts)
 
 -----------------------------------------------------------------------------
 -- * Combinations
@@ -522,14 +537,20 @@ shrink diff events = V.zipWith Event intervals events
 
 -----------------------------------------------------------------------------
 -- * Conversion
+toList
+  :: Ord t
+  => Timeline t p
+  -> [Event t p]
+toList (Timeline ps froms tos) = V.toList $ V.zipWith3 toNaiveEvent ps froms tos
+  where
+    toNaiveEvent p from to = Event (mkInterval from to) p
+
 -- | /O(n)/ Convert Strict structure to Naive
 toNaive
   :: Ord t
   => Timeline t p
   -> Naive.Timeline t p
-toNaive (Timeline ps froms tos) = Naive.Timeline $ V.toList $ V.zipWith3 toNaiveEvent ps froms tos
-  where
-    toNaiveEvent p from to = Event (mkInterval from to) p
+toNaive = Naive.Timeline . toList
 
 toEvents :: Timeline t p -> V.Vector (Event t p)
 toEvents (Timeline ps fs ts) = V.map (uncurry3 fromTriple) (V.zip3 ps fs ts)

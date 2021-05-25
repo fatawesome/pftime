@@ -25,7 +25,7 @@ data Timeline t p
   = Empty
   | Chunk !(Strict.Timeline t p) (Timeline t p)
   deriving (Functor, Foldable, Traversable, Eq)
-    
+
 instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline
 
@@ -149,7 +149,7 @@ fromStricts = foldr chunk Empty
 
 toList :: Ord t => Timeline t p -> [Event t p]
 toList Empty      = []
-toList (Chunk x xs) = Strict.toList x <> toList xs 
+toList (Chunk x xs) = Strict.toList x <> toList xs
 
 toNaive :: Ord t => Timeline t p -> Naive.Timeline t p
 toNaive = Naive.Timeline . toList
@@ -176,12 +176,12 @@ merge = mergeWith (\_ b -> b)
 -- >>> let b = fromNaive (" bbb   bbb" :: PictoralTimeline)
 -- >>> mergeWith (\_ b -> b) a b
 -- abbba abbba
--- 
+--
 -- >>> let a = fromNaive ("aa aa aa aa" :: PictoralTimeline)
 -- >>> let b = fromNaive ("bbbbbb" :: PictoralTimeline)
 -- >>> mergeWith (\_ b -> b) a b
 -- bbbbbbaa aa
--- 
+--
 -- >>> let a = fromNaive (" a a a a" :: PictoralTimeline)
 -- >>> let b = fromNaive ("bbb b b" :: PictoralTimeline)
 -- >>> mergeWith (\_ b -> b) a b
@@ -190,25 +190,25 @@ mergeWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline 
 mergeWith _ Empty Empty = Empty
 mergeWith _ t     Empty = t
 mergeWith _ Empty t     = t
-  
+
 mergeWith f (Chunk a as) (Chunk b Empty) = case mergeChunks f a b of
   Empty -> Empty
   Chunk x Empty -> chunk x as
   Chunk x remaining -> chunk x (mergeWith f as remaining)
-  
+
 mergeWith f (Chunk a Empty) (Chunk b bs) = case mergeChunks f a b of
   Empty -> Empty
   Chunk x Empty -> chunk x bs
   Chunk x remaining -> chunk x (mergeWith f remaining bs)
-   
+
 mergeWith f (Chunk a as) (Chunk b bs) = case mergeChunks f a b of
   Empty             -> Empty
   Chunk x Empty     -> chunk x (mergeWith f as bs)
-  Chunk x remaining -> 
+  Chunk x remaining ->
     if unsafeEndTime remaining < unsafeStartTime as
       then chunk x (mergeWith f (remaining `unsafeConcat` as) bs)
-      else chunk x (mergeWith f as (remaining `unsafeConcat` bs)) 
-    
+      else chunk x (mergeWith f as (remaining `unsafeConcat` bs))
+
 intersect :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 intersect = intersectWith (\_ b -> b)
 
@@ -289,56 +289,3 @@ mergeChunks f a b
   | Strict.size a == 0 = chunk b Empty
   | Strict.size b == 0 = chunk a Empty
   | otherwise = fromStricts $ Strict.toChunksOfSize chunkSize (Strict.mergeW f a b)
-  
--- aaabbbcccdddeeefff
--- eefffffffffff  
-
-takeWhileOverlapping
-  :: Ord a
-  => (a -> a -> Bool)
-  -> [a]
-  -> [a]
-  -> (([a], [a]), ([a], [a]))
-takeWhileOverlapping overlap (x:xs) (y:ys)
-  | x `overlap` y = go x y xs ys
-  where
-    go x y xs ys
-      | x < y =
-          case xs of
-            z:zs | z `overlap` y ->
-              let ((xs', ys'), suffixes) = go z y zs ys
-               in ((x:xs', ys'), suffixes)
-            _    -> (([x], [y]), (xs, ys))
-      | otherwise =
-          case ys of
-            z:zs | z `overlap` x ->
-              let ((xs', ys'), suffixes) = go x z xs zs
-               in ((xs', y:ys'), suffixes)
-            _   -> (([x], [y]), (xs, ys))
-takeWhileOverlapping _ xs ys = (([], []), (xs, ys))
-
-toS
-  :: Ord a
-  => (a -> a -> Bool)
-  -> [a]
-  -> [a]
-  -> [Either [a] ([a], [a])]
-toS overlap = go
-  where
-    go xs ys = 
-      case takeWhileOverlapping overlap xs ys of
-        (([], []), ([], [])) -> []
-        (([], []), _) ->
-          case (xs, ys) of
-            (x:xs', y:ys')
-              | x < y -> Left [x] : go xs' ys
-              | otherwise -> Left [y] : go xs ys'
-            _ -> [Left (xs <> ys)]
-        ((px, py), (sx, sy)) ->
-          Right (px, py) : go sx sy
-
-catE :: (Semigroup a, Semigroup b) => [Either a b] -> [Either a b]
-catE (Left x : Left y : zs) = catE (Left (x <> y) : zs)
-catE (Right x : Right y : zs) = catE (Right (x <> y) : zs)
-catE (x : xs) = x : catE xs
-catE [] = []

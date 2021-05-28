@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
 module Data.Timeline.Lazy where
 
@@ -13,6 +14,7 @@ import           Data.Timeline.Event
 import           Data.Timeline.Interval        
 import           Data.List (sortOn)
 import           Data.String            (IsString (..))
+import           Test.QuickCheck           hiding (shrink)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -31,6 +33,9 @@ instance (Ord t, Num t) => IsString (Timeline t Char) where
 
 instance Integral t => Show (Timeline t Char) where
   show = show . toNaive
+  
+instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Timeline t p) where
+  arbitrary = fromListWith (\_ b -> b) <$> arbitraryEventList
   
 -- $invariant
 strictInvariant :: Timeline t p -> Bool
@@ -165,12 +170,13 @@ unsafeConcat (Chunk a Empty) b = Chunk a b
 unsafeConcat (Chunk a as) b = Chunk a (unsafeConcat as b)
 
 insertWith :: Ord t => (p -> p -> p) -> Event t p -> Timeline t p -> Timeline t p
-insertWith f event timeline = error "not implemented"
+insertWith f event timeline = mergeWith f timeline (singleton event)
 
 merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 merge = mergeWith (\_ b -> b)
 
--- | Merge timelines using conflict resolver.
+-- | More efficient implementation of merge function. 
+-- Applies conflict resolving only where needed. 
 --
 -- >>> let a = fromNaive ("aa aa aa aa" :: PictoralTimeline)
 -- >>> let b = fromNaive (" bbb   bbb" :: PictoralTimeline)
@@ -190,25 +196,36 @@ mergeWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline 
 mergeWith _ Empty Empty = Empty
 mergeWith _ t     Empty = t
 mergeWith _ Empty t     = t
+mergeWith f a b = foldr1 unsafeConcat segments
+  where
+    segments = map resolveConflicts (catEithers $ toSegments a b)
+    resolveConflicts (Left x) = x
+    resolveConflicts (Right (x, y)) = _mergeOverlappingWith f x y
+    
+_mergeOverlappingWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
+_mergeOverlappingWith _ Empty Empty = Empty
+_mergeOverlappingWith _ t     Empty = t
+_mergeOverlappingWith _ Empty t     = t
 
-mergeWith f (Chunk a as) (Chunk b Empty) = case mergeChunks f a b of
+_mergeOverlappingWith f (Chunk a as) (Chunk b Empty) = case mergeChunks f a b of
   Empty -> Empty
   Chunk x Empty -> chunk x as
-  Chunk x remaining -> chunk x (mergeWith f as remaining)
+  Chunk x remaining -> chunk x (_mergeOverlappingWith f as remaining)
 
-mergeWith f (Chunk a Empty) (Chunk b bs) = case mergeChunks f a b of
+_mergeOverlappingWith f (Chunk a Empty) (Chunk b bs) = case mergeChunks f a b of
   Empty -> Empty
   Chunk x Empty -> chunk x bs
-  Chunk x remaining -> chunk x (mergeWith f remaining bs)
+  Chunk x remaining -> chunk x (_mergeOverlappingWith f remaining bs)
 
-mergeWith f (Chunk a as) (Chunk b bs) = case mergeChunks f a b of
+_mergeOverlappingWith f (Chunk a as) (Chunk b bs) = case mergeChunks f a b of
   Empty             -> Empty
   Chunk x Empty     -> chunk x (mergeWith f as bs)
   Chunk x remaining ->
     if unsafeEndTime remaining < unsafeStartTime as
-      then chunk x (mergeWith f (remaining `unsafeConcat` as) bs)
-      else chunk x (mergeWith f as (remaining `unsafeConcat` bs))
+      then chunk x (_mergeOverlappingWith f (remaining `unsafeConcat` as) bs)
+      else chunk x (_mergeOverlappingWith f as (remaining `unsafeConcat` bs))
 
+    
 intersect :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 intersect = intersectWith (\_ b -> b)
 
@@ -229,7 +246,7 @@ tuplify2 (Just [x, y]) = Just (x, y)
 tuplify2 _             = Nothing 
 
 compareChunks :: Ord t => Strict.Timeline t p -> Strict.Timeline t p -> Ordering
-compareChunks q w = Strict.startTime q `compare` Strict.startTime w
+compareChunks q w = Strict.endTime q `compare` Strict.endTime w
 
 takeChunksWhileOverlapping 
   :: Ord t
@@ -268,6 +285,7 @@ toSegments a b = case takeChunksWhileOverlapping a b of
     _ -> [Left (unsafeConcat a b)]
   ((px, py), (sx, sy)) -> Right (px, py) : toSegments sx sy 
 
+-- Интересно побенчмаркать то, когда лучше это делать
 catEithers 
   :: Ord t
   => [Either (Timeline t p) (Timeline t p, Timeline t p)] 

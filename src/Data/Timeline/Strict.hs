@@ -13,6 +13,7 @@ import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
 import qualified Data.Vector            as V
+import           Test.QuickCheck           hiding (shrink)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -31,6 +32,9 @@ instance (Ord t, Num t) => IsString (Timeline t Char) where
 
 instance Integral t => Show (Timeline t Char) where
   show = show . toNaive
+  
+instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Timeline t p) where
+  arbitrary = fromNaive . Naive.fromListWith (\_ b -> b) <$> arbitraryEventList
 
 -----------------------------------------------------------------------------
 -- * Accessors

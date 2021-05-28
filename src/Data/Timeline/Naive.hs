@@ -653,13 +653,13 @@ _mergeWith
   -> Timeline t p  -- ^ timeline 2
   -> Timeline t p  -- ^ reversed accumulated timeline
   -> Timeline t p  -- ^ result
-_mergeWith _ (Timeline []) (Timeline []) (Timeline []) = empty
-_mergeWith _ (Timeline []) (Timeline []) acc           = reverse acc
+_mergeWith _ (Timeline []) (Timeline []) (Timeline []) = empty -- O(1)
+_mergeWith _ (Timeline []) (Timeline []) acc           = reverse acc -- O(length acc)
 
-_mergeWith _ x (Timeline []) (Timeline []) = x
-_mergeWith _ (Timeline []) y (Timeline []) = y
+_mergeWith _ x (Timeline []) (Timeline []) = x -- O(1)
+_mergeWith _ (Timeline []) y (Timeline []) = y -- O(1)
 
-_mergeWith f (Timeline (x:xs)) (Timeline []) acc
+_mergeWith f (Timeline (x:xs)) (Timeline []) acc -- 
   = _mergeWith f (Timeline xs) empty (_reversedInsert (flip f) x acc)
 
 _mergeWith f (Timeline []) (Timeline (y:ys)) acc

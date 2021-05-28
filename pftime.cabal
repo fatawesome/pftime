@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4754ca9d164569cdc6ef4339f367fa70956a85c09417d20a4aa5a514b7da19ce
+-- hash: f3473fe8b2d8dc2b52a23bf74549518d151dd5d7d3d808d16b913771b77efd3f
 
 name:           pftime
 version:        0.1.0.0
@@ -165,6 +165,7 @@ benchmark naive-benchmark
   main-is: Main.hs
   other-modules:
       Helpers
+      Merge
       Naive
       Naive.Insert
       Strict

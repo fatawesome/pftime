@@ -21,11 +21,9 @@ import           Test.QuickCheck           hiding (shrink)
 -- >>> import Data.Timeline.Pictoral
 -- $setup
 
-data Timeline t p = Timeline
-  { timelinePayload :: !(V.Vector p)
-  , timelineFrom    :: !(V.Vector t)
-  , timelineTo      :: !(V.Vector t) -- TODO investigate the unboxed vectors + type-level functions
-  } deriving (Functor, Foldable, Traversable, Eq)
+data Timeline t p = Timeline {
+  getTimeline :: !(V.Vector (Event t p))
+} deriving (Functor, Eq)
 
 instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline
@@ -40,29 +38,25 @@ instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Timeline t p) where
 -- * Accessors
 
 size :: Timeline t p -> Int
-size t = V.length $ timelinePayload t
+size t = V.length $ getTimeline t
 
 isEmpty :: Timeline t p -> Bool
-isEmpty (Timeline ps froms tos) = V.null ps || V.null froms || V.null tos
+isEmpty (Timeline xs) = V.null xs
 
 head :: Timeline t p -> Maybe (Event t p)
-head t@(Timeline ps fs ts)
-  | isEmpty t = Nothing
-  | otherwise = Just (Event (Interval (V.head fs, V.head ts)) (V.head ps))
+head (Timeline xs) = V.headM xs
   
 tail :: Timeline t p -> Timeline t p
-tail (Timeline ps fs ts) = Timeline (V.tail ps) (V.tail fs) (V.tail ts)
+tail (Timeline xs) = Timeline (V.tail xs)
 
 last :: Timeline t p -> Maybe (Event t p)
-last t@(Timeline ps fs ts)
-  | isEmpty t = Nothing
-  | otherwise = Just (Event (Interval (V.last fs, V.last ts)) (V.last ps))
+last (Timeline xs) = V.lastM xs
 
 unsafeHead :: Timeline t p -> Event t p
-unsafeHead (Timeline ps fs ts) = Event (Interval (V.head fs, V.head ts)) (V.head ps)
+unsafeHead (Timeline xs) = V.head xs
 
 unsafeLast :: Timeline t p -> Event t p
-unsafeLast (Timeline ps fs ts) = Event (Interval (V.last fs, V.last ts)) (V.last ps)
+unsafeLast (Timeline xs) = V.last xs
 
 startTime :: Timeline t p -> Maybe t
 startTime timeline = case head timeline of
@@ -104,42 +98,19 @@ overlaps x y
 -- * Construction
 
 empty :: Timeline t p
-empty = Timeline V.empty V.empty V.empty
+empty = Timeline V.empty
 
 singleton :: Event t p -> Timeline t p
-singleton (Event (Interval (f, t)) p) = Timeline (V.singleton p) (V.singleton f) (V.singleton t)
-
--- | /O(n)/ Create strict Timeline from three lists.
---
--- >>> payloads = ['a', 'b']
--- >>> froms = [0, 3]
--- >>> tos = [2, 5]
--- >>> fromLists payloads froms tos
--- aa bb
-fromLists :: [p] -> [t] -> [t] -> Timeline t p
-fromLists p from to
-  = fromVectors (V.fromList p) (V.fromList from) (V.fromList to)
+singleton x = Timeline (V.singleton x)
   
 unsafeFromEvents :: V.Vector (Event t p) -> Timeline t p
 unsafeFromEvents = error "not implemented"
   where
     event (Event (Interval (l, r)) p) = (p, l, r) 
 
--- | /O(1)/ Construct Timeline from three vectors (payloads, from points, to points).
-fromVectors :: V.Vector p -> V.Vector t -> V.Vector t -> Timeline t p
-fromVectors = Timeline
-
 -- | /O(n)/ Convert Naive structure to Strict.
 fromNaive :: Naive.Timeline t p -> Timeline t p
-fromNaive = uncurry3 fromLists . unzip3 . map f . Naive.getTimeline
-  where
-    f (Event (Interval (from, to)) p) = (p, from, to)
-
-unsafeMapTimestampMonotonic :: (t -> t') -> Timeline t p -> Timeline t' p
-unsafeMapTimestampMonotonic f tl = tl
-  { timelineFrom = f <$> timelineFrom tl
-  , timelineTo   = f <$> timelineTo tl
-  }
+fromNaive t = Timeline $ V.fromList $ Naive.getTimeline t
 
 -- | /O(n)/ Insert event into the timeline.
 --
@@ -214,7 +185,7 @@ insertWith
 insertWith f event timeline = mergeW f timeline (singleton event) 
 
 unsafeSnoc :: Timeline t p -> Event t p -> Timeline t p
-unsafeSnoc (Timeline ps fs ts) (Event (Interval (f, t)) p) = Timeline (V.snoc ps p) (V.snoc fs f) (V.snoc ts t)  
+unsafeSnoc (Timeline xs) x = Timeline (V.snoc xs x)  
 
 -----------------------------------------------------------------------------
 -- * Query
@@ -235,15 +206,12 @@ filterEvents
   :: (Event t p -> Bool)
   -> Timeline t p
   -> Timeline t p
-filterEvents f (Timeline ps fs ts) = fromVectorsTuple $ V.unzip3 $ V.filter g (V.zip3 ps fs ts)
-  where
-    g = f . uncurry3 fromTriple
-    fromVectorsTuple (a, b, c) = Timeline a b c
+filterEvents f (Timeline xs) = Timeline (V.filter f xs)
 
 -- | /O(log(n)/ Search for events which happen during given time interval.
 -- If there are no such events, returns empty timeline.
 search :: Ord t => Interval t -> Timeline t p -> Timeline t p
-search interval t = fromEvents $ binarySearchEvents interval (toEvents t)
+search interval (Timeline xs) = Timeline (binarySearchEvents interval xs)
 
 --searchIndices :: Ord t => Interval t -> Timeline t p -> (Int, Int)
 
@@ -251,31 +219,31 @@ search interval t = fromEvents $ binarySearchEvents interval (toEvents t)
 -- | /O(log(n))/ Binary search in vector with entries of Event type.
 --
 -- >>> let t = "aaaaa" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 1 3) (toEvents $ fromNaive t) == V.singleton (Event (mkInterval 1 3) 'a')
+-- >>> binarySearchEvents (mkInterval 1 3) (getTimeline $ fromNaive t) == V.singleton (Event (mkInterval 1 3) 'a')
 -- True
 --
 -- >>> let t = "aaaaa" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 0 7) (toEvents $ fromNaive t) == V.singleton (Event (mkInterval 0 5) 'a')
+-- >>> binarySearchEvents (mkInterval 0 7) (getTimeline $ fromNaive t) == V.singleton (Event (mkInterval 0 5) 'a')
 -- True
 --
 -- >>> let t = "  aaa" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 0 4) (toEvents $ fromNaive t) == V.singleton (Event (mkInterval 2 4) 'a')
+-- >>> binarySearchEvents (mkInterval 0 4) (getTimeline $ fromNaive t) == V.singleton (Event (mkInterval 2 4) 'a')
 -- True
 --
 -- >>> let t = "aaa bbb" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 0 7) (toEvents $ fromNaive t) == V.fromList [(Event (mkInterval 0 3) 'a'), (Event (mkInterval 4 7) 'b')]
+-- >>> binarySearchEvents (mkInterval 0 7) (getTimeline $ fromNaive t) == V.fromList [(Event (mkInterval 0 3) 'a'), (Event (mkInterval 4 7) 'b')]
 -- True
 --
 -- >>> let t = "aaa bbb" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 3 4) (toEvents $ fromNaive t) == V.empty
+-- >>> binarySearchEvents (mkInterval 3 4) (getTimeline $ fromNaive t) == V.empty
 -- True
 --
 -- >>> let t = "aaa bbb" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 2 5) (toEvents $ fromNaive t) == V.fromList [(Event (mkInterval 2 3) 'a'), (Event (mkInterval 4 5) 'b')]
+-- >>> binarySearchEvents (mkInterval 2 5) (getTimeline $ fromNaive t) == V.fromList [(Event (mkInterval 2 3) 'a'), (Event (mkInterval 4 5) 'b')]
 -- True
 --
 -- >>> let t = "aaa bbb ccc" :: PictoralTimeline
--- >>> binarySearchEvents (mkInterval 2 9) (toEvents $ fromNaive t) == V.fromList [(Event (mkInterval 2 3) 'a'), (Event (mkInterval 4 7) 'b'), (Event (mkInterval 8 9) 'c')]
+-- >>> binarySearchEvents (mkInterval 2 9) (getTimeline $ fromNaive t) == V.fromList [(Event (mkInterval 2 3) 'a'), (Event (mkInterval 4 7) 'b'), (Event (mkInterval 8 9) 'c')]
 -- True
 binarySearchEvents :: (Ord t) => Interval t -> V.Vector (Event t p) -> V.Vector (Event t p)
 binarySearchEvents i@(Interval (from, to)) events
@@ -337,26 +305,24 @@ deleteEvents interval events = delete' (binarySearchIndices interval events) eve
 
 -- | /O(1)/. Take first /n/ events from timeline.
 take :: Int -> Timeline t p -> Timeline t p
-take n (Timeline ps fs ts) = Timeline (V.take n ps) (V.take n fs) (V.take n ts)
+take n (Timeline xs) = Timeline (V.take n xs)
 
 -- | /O(1)/. Delete first /n/ events from the timeline.
 drop :: Int -> Timeline t p -> Timeline t p
-drop n (Timeline ps fs ts) = Timeline (V.drop n ps) (V.drop n fs) (V.drop n ts)
+drop n (Timeline xs) = Timeline (V.drop n xs)
 
 -- | /O(n)/. Delete interval from the timeline.
 delete :: Ord t => Interval t -> Timeline t p -> Timeline t p
-delete i t = fromEvents $ deleteEvents i (toEvents t)
+delete i t = Timeline (deleteEvents i (getTimeline t))
 
 -- | /O(1)/. Split timeline on index of event.
 splitAtIndex :: Int -> Timeline t p -> (Timeline t p, Timeline t p)
-splitAtIndex n (Timeline ps fs ts) = (Timeline leftPs leftFs leftTs, Timeline rightPs rightFs rightTs)
+splitAtIndex n (Timeline xs) = (Timeline left, Timeline right)
   where
-    (leftPs, rightPs) = V.splitAt n ps
-    (leftFs, rightFs) = V.splitAt n fs
-    (leftTs, rightTs) = V.splitAt n ts
+    (left, right) = V.splitAt n xs
 
 splitAtTime :: t -> Timeline t p -> (Timeline t p, Timeline t p)
-splitAtTime = error "not implemented"
+splitAtTime = error "not implemented" 
 
 toChunksOfSize :: Ord t => Int -> Timeline t p -> [Timeline t p]
 toChunksOfSize n t
@@ -366,21 +332,21 @@ toChunksOfSize n t
     (chunk, remaining) = splitAtIndex n t
 
 shiftWith  
-  :: (t -> t -> t)
+  :: Ord t
+  => (t -> t -> t)
   -> t
   -> Timeline t p
   -> Timeline t p
-shiftWith f n (Timeline ps fs ts) = Timeline ps (V.map (f n) fs) (V.map (f n) ts)
+shiftWith f n (Timeline xs) = Timeline (V.map (Data.Timeline.Event.shiftWith f n) xs)
 
 -----------------------------------------------------------------------------
 -- * Combinations
 
 unsafeConcat :: Timeline t p -> Timeline t p -> Timeline t p
-unsafeConcat (Timeline ps1 fs1 ts1) (Timeline ps2 fs2 ts2)
-  = Timeline (ps1 V.++ ps2) (fs1 V.++ fs2) (ts1 V.++ ts2)
+unsafeConcat (Timeline xs) (Timeline ys) = Timeline (xs V.++ ys)
 
 merge :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
-merge a b = fromEvents $ mergeEvents (\_ x -> x) (toEvents a) (toEvents b)
+merge a b = Timeline $ mergeEvents (\_ x -> x) (getTimeline a) (getTimeline b)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
 --
@@ -439,7 +405,7 @@ merge a b = fromEvents $ mergeEvents (\_ x -> x) (toEvents a) (toEvents b)
 -- >>> mergeW (\a b -> b) (fromNaive t1) (fromNaive t2)
 -- xxxxxxxxc
 mergeW :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
-mergeW f a b = fromEvents $ mergeEvents f (toEvents a) (toEvents b)
+mergeW f a b = Timeline $ mergeEvents f (getTimeline a) (getTimeline b)
 
 mergeEvents
   :: Ord t
@@ -480,6 +446,19 @@ mergeEventsImpl f acc as bs
                     then V.singleton b
                     else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
                     
+intersectWith 
+  :: Ord t 
+  => (p -> p -> p) 
+  -> Timeline t p 
+  -> Timeline t p
+  -> Timeline t p
+intersectWith f x y
+  | isEmpty x || isEmpty y = empty
+  | otherwise = error "not implemented"
+  where
+    newBounds = (max (unsafeStartTime x) (unsafeStartTime y), min (unsafeEndTime x) (unsafeEndTime y))
+  
+                    
 -- | Update events using a reference timeline schedule.
 -- All of the events from the second timeline are overlayed
 -- over events from the first timeline (reference).
@@ -492,10 +471,10 @@ withReference
   -> Timeline abs a      -- ^ reference timeline 
   -> Timeline rel b      -- ^ target timeline
   -> Timeline abs c      -- ^ target timeline overlaid over reference
-withReference diff add f as bs = fromEvents $ (unsafeIntersectionWithEvent combine . shrink diff) eventsA eventsB
+withReference diff add f as bs = Timeline $ (unsafeIntersectionWithEvent combine . shrink diff) eventsA eventsB
   where
-    eventsA = toEvents as
-    eventsB = toEvents bs
+    eventsA = getTimeline as
+    eventsB = getTimeline bs
     combine i x y = Event (Interval (from, to)) (f a b)
       where
         from = add f3 (f1 - f2)
@@ -545,9 +524,7 @@ toList
   :: Ord t
   => Timeline t p
   -> [Event t p]
-toList (Timeline ps froms tos) = V.toList $ V.zipWith3 toNaiveEvent ps froms tos
-  where
-    toNaiveEvent p from to = Event (mkInterval from to) p
+toList (Timeline xs) = V.toList xs 
 
 -- | /O(n)/ Convert Strict structure to Naive
 toNaive
@@ -555,10 +532,4 @@ toNaive
   => Timeline t p
   -> Naive.Timeline t p
 toNaive = Naive.Timeline . toList
-
-toEvents :: Timeline t p -> V.Vector (Event t p)
-toEvents (Timeline ps fs ts) = V.map (uncurry3 fromTriple) (V.zip3 ps fs ts)
-
-fromEvents :: V.Vector (Event t p) -> Timeline t p
-fromEvents events = fromNaive $ Naive.Timeline (V.toList events)
 

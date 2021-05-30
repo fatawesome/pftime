@@ -230,7 +230,9 @@ intersect :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 intersect = intersectWith (\_ b -> b)
 
 intersectWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
-intersectWith = error "not implemented"
+intersectWith _ Empty _ = Empty
+intersectWith _ _ Empty = Empty
+intersectWith f (Chunk x xs) (Chunk y ys) = 
 
 difference :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 difference = error "not implemented"

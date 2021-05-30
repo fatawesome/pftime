@@ -54,6 +54,14 @@ changeTo to (Event (Interval (from, _)) payload) = Event (mkInterval from to) pa
 sliceEventBound :: Ord t => Interval t -> Event t p -> Event t p
 sliceEventBound interval (Event oldInterval payload) = Event (sliceBound interval oldInterval) payload
 
+shiftWith
+  :: Ord t
+  => (t -> t -> t)
+  -> t
+  -> Event t p
+  -> Event t p
+shiftWith f n (Event i p) = Event (Interval.shiftWith f n i) p
+
 -- |
 --
 -- prop> mergeEventsWith (\a b -> b) (Event (mkInterval 0 3) 'x') (Event (mkInterval 3 6) 'y') == [(Event (mkInterval 0 3) 'x'), (Event (mkInterval 3 6) 'y')]

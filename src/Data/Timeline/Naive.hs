@@ -20,7 +20,7 @@ import qualified Prelude
 import           Data.Foldable             (asum)
 import           Data.Maybe                (mapMaybe)
 
-import           Data.Timeline.Event       as Event
+import           Data.Timeline.Event       as Event hiding (shiftWith)
 import           Data.Timeline.Interval    hiding (intersect, shiftWith)
 import qualified Data.Timeline.Interval    as Interval
 import           Data.Timeline.Overlapping as Overlapping
@@ -32,6 +32,7 @@ import           Test.QuickCheck           hiding (shrink)
 -- >>> :set -XOverloadedStrings
 -- >>> import Prelude hiding (take, takeWhile, subtract, null, filter, drop, dropWhile)
 -- >>> import Data.Timeline.Pictoral
+-- >>> import Data.Timeline.Event as Event hiding (shiftWith)
 -- >>> let event_0_2_a = Event (Interval (0, 2)) "a"
 -- >>> let event_1_3_b = Event (Interval (1, 3)) "b"
 -- >>> let overlapping = Overlapping.fromList [event_0_2_a, event_1_3_b]
@@ -328,7 +329,6 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
     diff = subtract ix i
     insertPayload is p = map (`Event` p) is
 
-
 -- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
 --
 -- >>> let t = "xxx" :: PictoralTimeline
@@ -355,7 +355,6 @@ drop _ (Timeline []) = empty
 drop n timeline@(Timeline (_:xs))
   | n > 0     = drop (n-1) (Timeline xs)
   | otherwise = timeline
-
 
 -- | Return suffix after dropping events which satisfy the predicate.
 --

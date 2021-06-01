@@ -4,11 +4,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Data.Timeline.Strict where
 
-import           Prelude                hiding (drop, dropWhile, filter, head, last)
+import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt)
 import           Data.String            (IsString (..))
 import           Data.Generics.Aliases
 import           Data.Timeline.Event
-import           Data.Timeline.Interval hiding (overlaps)
+import           Data.Timeline.Interval hiding (overlaps, includes)
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
@@ -86,6 +86,12 @@ bounds x
 unsafeBounds :: Timeline t p -> (t, t)
 unsafeBounds x = (unsafeStartTime x, unsafeEndTime x)
 
+takeAtIndex :: Int -> Timeline t p -> Maybe (Event t p)
+takeAtIndex i (Timeline xs) = xs V.!? i 
+  
+unsafeTakeAtIndex :: Int -> Timeline t p -> Event t p
+unsafeTakeAtIndex i (Timeline xs) = xs V.! i
+
 -----------------------------------------------------------------------------
 -- * Predicates
 
@@ -107,18 +113,19 @@ unsafeFromEvents :: V.Vector (Event t p) -> Timeline t p
 unsafeFromEvents = error "not implemented"
   where
     event (Event (Interval (l, r)) p) = (p, l, r) 
+    
+fromList :: [Event t p] -> Timeline t p
+fromList = Timeline . V.fromList
 
 -- | /O(n)/ Convert Naive structure to Strict.
 fromNaive :: Naive.Timeline t p -> Timeline t p
-fromNaive t = Timeline $ V.fromList $ Naive.getTimeline t
+fromNaive = fromList . Naive.getTimeline
 
 -- | /O(n)/ Insert event into the timeline.
 --
 -- >>> f = (\a b -> b)
--- >>> payloads = ['a']
--- >>> froms = [2]
--- >>> tos   = [5]
--- >>> t = fromLists payloads froms tos
+-- >>> x = Event (mkInterval 2 5) 'a'
+-- >>> t = singleton x
 -- >>> t
 --   aaa
 --
@@ -321,8 +328,32 @@ splitAtIndex n (Timeline xs) = (Timeline left, Timeline right)
   where
     (left, right) = V.splitAt n xs
 
-splitAtTime :: t -> Timeline t p -> (Timeline t p, Timeline t p)
-splitAtTime = error "not implemented" 
+-- | Split timeline on two at given point in time.
+-- If given timeline is empty, returns pair of empty timelines.
+--
+-- >>> let x = fromNaive (" xxxxx" :: PictoralTimeline)
+-- >>> splitAtTime 1 x
+-- ("", "  xxxxx")
+--   
+-- >>> let x = fromNaive ("xxxxx" :: PictoralTimeline)
+-- >>> splitAtTime 3 x
+-- ("xxx", "xx")
+splitAtTime :: Ord t => t -> Timeline t p -> (Timeline t p, Timeline t p)
+splitAtTime point timeline@(Timeline xs)
+  | isEmpty timeline = (empty, empty)
+  | otherwise = case splitIndexM of
+    Nothing ->
+      if unsafeStartTime timeline >= point 
+        then (empty, timeline)
+        else (timeline, empty)
+    Just index -> case middle of
+      Left x       -> (Timeline $ V.snoc lefts x, Timeline rights)
+      Right (x, y) -> (Timeline $ V.snoc lefts x, Timeline $ V.cons y rights)
+      where
+        (lefts, rights) = V.splitAt index xs
+        middle = splitAt point (unsafeTakeAtIndex index timeline)
+  where
+    splitIndexM = V.findIndex (includes point) xs  
 
 toChunksOfSize :: Ord t => Int -> Timeline t p -> [Timeline t p]
 toChunksOfSize n t

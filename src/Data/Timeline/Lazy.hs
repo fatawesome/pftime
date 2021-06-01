@@ -26,7 +26,7 @@ import           Test.QuickCheck           hiding (shrink)
 data Timeline t p
   = Empty
   | Chunk !(Strict.Timeline t p) (Timeline t p)
-  deriving (Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Eq)
 
 instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline
@@ -232,7 +232,7 @@ intersect = intersectWith (\_ b -> b)
 intersectWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
 intersectWith _ Empty _ = Empty
 intersectWith _ _ Empty = Empty
-intersectWith f (Chunk x xs) (Chunk y ys) = 
+intersectWith f (Chunk x xs) (Chunk y ys) = error "not impl"
 
 difference :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 difference = error "not implemented"

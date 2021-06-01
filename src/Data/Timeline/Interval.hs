@@ -138,6 +138,9 @@ intersects a b
 
 -- Thirteen possible relationships between temporal intervals introduced by Allen.
 
+includes :: Ord t => Interval t -> t -> Bool
+includes (Interval (a, b)) point = a <= point && point < b
+
 before :: Ord t => Interval t -> Interval t -> Bool
 before (Interval (_, t1)) (Interval (f2, _)) = t1 <= f2
 

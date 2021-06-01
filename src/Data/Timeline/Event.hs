@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Data.Timeline.Event where
 
+import Prelude hiding (splitAt)
 import           Data.Timeline.Interval hiding (adjacent)
 import qualified Data.Timeline.Interval as Interval
 import           Control.DeepSeq 
@@ -164,3 +165,15 @@ eventCreatorN'withOverlapping :: Int -> [Event Int [Char]]
 eventCreatorN'withOverlapping n 
   | n >= 0 = [eventCreator (t `mod` 97) ( (2*t) `mod` 113) "SAMPLE_TEXT" | t <- [0 .. n-1] ]
   | otherwise = []
+  
+includes :: Ord t => t -> Event t p -> Bool
+includes point (Event interval _) = interval `Interval.includes` point
+
+splitAt 
+  :: Ord t 
+  => t 
+  -> Event t p 
+  -> Either (Event t p) (Event t p, Event t p)
+splitAt point event@(Event (Interval (l, r)) payload)
+  | point <= l || r <= point = Left event
+  | otherwise = Right (eventCreator l point payload, eventCreator point r payload)

@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Data.Timeline.Strict where
 
-import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt)
+import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt, tail)
 import           Data.String            (IsString (..))
 import           Data.Generics.Aliases
 import           Data.Timeline.Event
@@ -189,7 +189,10 @@ insertWith
   -> Event t p
   -> Timeline t p
   -> Timeline t p
-insertWith f event timeline = mergeW f timeline (singleton event) 
+insertWith f event timeline = mergeW f timeline (singleton event)
+
+unsafeCons :: Event t p -> Timeline t p -> Timeline t p
+unsafeCons x (Timeline xs) = Timeline (V.cons x xs)  
 
 unsafeSnoc :: Timeline t p -> Event t p -> Timeline t p
 unsafeSnoc (Timeline xs) x = Timeline (V.snoc xs x)  
@@ -333,11 +336,11 @@ splitAtIndex n (Timeline xs) = (Timeline left, Timeline right)
 --
 -- >>> let x = fromNaive (" xxxxx" :: PictoralTimeline)
 -- >>> splitAtTime 1 x
--- ("", "  xxxxx")
+-- (, xxxxx)
 --   
 -- >>> let x = fromNaive ("xxxxx" :: PictoralTimeline)
 -- >>> splitAtTime 3 x
--- ("xxx", "xx")
+-- (xxx,   xx)
 splitAtTime :: Ord t => t -> Timeline t p -> (Timeline t p, Timeline t p)
 splitAtTime point timeline@(Timeline xs)
   | isEmpty timeline = (empty, empty)
@@ -347,10 +350,14 @@ splitAtTime point timeline@(Timeline xs)
         then (empty, timeline)
         else (timeline, empty)
     Just index -> case middle of
-      Left x       -> (Timeline $ V.snoc lefts x, Timeline rights)
+      Left x       -> if end x < point
+                        then (timeline, empty)
+                        else (empty, timeline)
       Right (x, y) -> (Timeline $ V.snoc lefts x, Timeline $ V.cons y rights)
       where
-        (lefts, rights) = V.splitAt index xs
+        (lefts_, rights_) = V.splitAt index xs
+        lefts  = if V.null lefts_ then lefts_ else V.init lefts_ 
+        rights = if V.null rights_ then rights_ else V.tail rights_
         middle = splitAt point (unsafeTakeAtIndex index timeline)
   where
     splitIndexM = V.findIndex (includes point) xs  
@@ -476,19 +483,49 @@ mergeEventsImpl f acc as bs
     accumulateB = if V.null acc
                     then V.singleton b
                     else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
-                    
+ 
+-- | /O(N+M)./ Intersect two timelines using conflict resolving function.
+-- 
+-- >>> let x = fromNaive ("xxxxx" :: PictoralTimeline)
+-- >>> let y = fromNaive (" y y " :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  x x
+-- 
+-- >>> let x = fromNaive (" x x " :: PictoralTimeline)
+-- >>> let y = fromNaive ("yyyyy" :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  x x
+-- 
+-- >>> let x = fromNaive ("xxx " :: PictoralTimeline)
+-- >>> let y = fromNaive (" yyy" :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  xx
+--
+-- >>> let x = fromNaive ("xxx xxx xxx" :: PictoralTimeline)
+-- >>> let y = fromNaive ("  yyy yyy  " :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--   x x x x                      
 intersectWith 
   :: Ord t 
   => (p -> p -> p) 
   -> Timeline t p 
   -> Timeline t p
   -> Timeline t p
-intersectWith f x y
-  | isEmpty x || isEmpty y = empty
-  | otherwise = error "not implemented"
+intersectWith f xs ys
+  | isEmpty xs || isEmpty ys = empty
+  | otherwise = if left <= right
+      then unsafeCons (eventCreator left right (f (getPayload x) (getPayload y))) next
+      else next
   where
-    newBounds = (max (unsafeStartTime x) (unsafeStartTime y), min (unsafeEndTime x) (unsafeEndTime y))
-  
+    x = unsafeHead xs
+    y = unsafeHead ys
+    left  = max (start x) (start y)
+    right = min (end x) (end y)
+    xss = tail xs
+    yss = tail ys
+    next = if end x < end y
+      then intersectWith f xss ys
+      else intersectWith f xs yss 
                     
 -- | Update events using a reference timeline schedule.
 -- All of the events from the second timeline are overlayed

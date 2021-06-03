@@ -229,10 +229,50 @@ _mergeOverlappingWith f (Chunk a as) (Chunk b bs) = case mergeChunks f a b of
 intersect :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 intersect = intersectWith (\_ b -> b)
 
+-- | /O(N+M)./ Intersect two timelines using conflict resolving function.
+-- 
+-- >>> let x = fromNaive ("xxxxx" :: PictoralTimeline)
+-- >>> let y = fromNaive (" y y " :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  x x
+-- 
+-- >>> let x = fromNaive (" x x " :: PictoralTimeline)
+-- >>> let y = fromNaive ("yyyyy" :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  x x
+-- 
+-- >>> let x = fromNaive ("xxx " :: PictoralTimeline)
+-- >>> let y = fromNaive (" yyy" :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  xx
+--
+-- >>> let x = fromNaive ("xxx xxx xxx" :: PictoralTimeline)
+-- >>> let y = fromNaive ("  yyy yyy  " :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--   x x x x  
+--
+-- >>> let x = fromNaive ("  xxx" :: PictoralTimeline)
+-- >>> let y = fromNaive ("yyy  " :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--   x
+--
+-- >>> let x = fromNaive ("xx xx xx xx xx xx"  :: PictoralTimeline)
+-- >>> let y = fromNaive (" yy yy yy yy yy yy" :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  x  x  x  x  x  x
 intersectWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
 intersectWith _ Empty _ = Empty
 intersectWith _ _ Empty = Empty
-intersectWith f (Chunk x xs) (Chunk y ys) = error "not impl"
+intersectWith f t1@(Chunk x xs) t2@(Chunk y ys) 
+  = if left <= right
+    then Chunk (Strict.intersectWith f x y) next
+    else next
+  where
+    left  = max (Strict.unsafeStartTime x) (Strict.unsafeStartTime y)
+    right = min (Strict.unsafeEndTime x) (Strict.unsafeEndTime y) 
+    next = if Strict.unsafeEndTime x < Strict.unsafeEndTime y
+      then intersectWith f xs t2
+      else intersectWith f t1 ys 
 
 difference :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 difference = error "not implemented"

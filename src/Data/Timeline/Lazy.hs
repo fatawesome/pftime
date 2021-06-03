@@ -260,6 +260,11 @@ intersect = intersectWith (\_ b -> b)
 -- >>> let y = fromNaive (" yy yy yy yy yy yy" :: PictoralTimeline)
 -- >>> intersectWith (\a b -> a) x y
 --  x  x  x  x  x  x
+--
+-- >>> let x = fromNaive (" xx xx xx xx xx xx"  :: PictoralTimeline)
+-- >>> let y = fromNaive ("yy yy yy yy yy yy" :: PictoralTimeline)
+-- >>> intersectWith (\a b -> a) x y
+--  x  x  x  x  x  x
 intersectWith :: Ord t => (p -> p -> p) -> Timeline t p -> Timeline t p -> Timeline t p
 intersectWith _ Empty _ = Empty
 intersectWith _ _ Empty = Empty

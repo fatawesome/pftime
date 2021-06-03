@@ -96,6 +96,13 @@ sliceBound x y = case subtract x y of
 concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
 
+
+--data IntervalDifference t = Null | Single (Interval t) | Tuple (Interval t, Interval t)
+--difference :: Ord t => Interval t -> Interval t -> IntervalDifference t
+--difference x@(Interval (xl, xr)) y@(Interval (yl, yr))
+--  | xl > yr || xr < yl || (xl > yl && xr < yr) = Null
+--  | xl 
+
 ------------------------------------------------------------------------------
 -- * Transformations
 

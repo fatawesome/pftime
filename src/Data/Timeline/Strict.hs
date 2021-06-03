@@ -525,7 +525,21 @@ intersectWith f xs ys
     yss = tail ys
     next = if end x < end y
       then intersectWith f xss ys
-      else intersectWith f xs yss 
+      else intersectWith f xs yss
+
+--difference
+--  :: Ord t
+--  => Timeline t p
+--  -> Timeline t p
+--  -> Timeline t p
+--difference x@(Timeline xs) y@(Timeline ys)
+--  | isEmpty x = empty
+--  | isEmpty y = x
+--  | otherwise = error "not impl"
+--  where
+--    leftBound = 
+
+
                     
 -- | Update events using a reference timeline schedule.
 -- All of the events from the second timeline are overlayed

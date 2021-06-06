@@ -4,11 +4,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Data.Timeline.Strict where
 
-import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt, tail)
+import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt, tail, subtract)
 import           Data.String            (IsString (..))
-import           Data.Generics.Aliases
+import           Data.Generics.Aliases hiding (GT)
 import           Data.Timeline.Event
-import           Data.Timeline.Interval hiding (overlaps, includes)
+import           Data.Timeline.Interval hiding (overlaps, includes, difference, subtract, Null, One, Two)
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
@@ -525,18 +525,83 @@ intersectWith f xs ys
     next = if end x < end y
       then intersectWith f xss ys
       else intersectWith f xs yss
-
---difference
---  :: Ord t
---  => Timeline t p
---  -> Timeline t p
---  -> Timeline t p
---difference x@(Timeline xs) y@(Timeline ys)
---  | isEmpty x = empty
---  | isEmpty y = x
---  | otherwise = error "not impl"
---  where
---    leftBound = 
+      
+-- | /O(N+M)./ Find how first timeline is different from second.
+--
+-- >>> let t1 = fromNaive ("xxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yyy" :: PictoralTimeline)
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("xxx    " :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("    yyy" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- xxx
+--
+-- >>> let t1 = fromNaive ("xxx  " :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("  yyy" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- xx
+--
+-- >>> let t1 = fromNaive ("xxx yyy" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("xx   yy" :: PictoralTimeline)
+-- >>> difference t1 t2
+--   x y
+--
+-- >>> let t1 = fromNaive (" yyy" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yxxx" :: PictoralTimeline)
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("yxxxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yxxx" :: PictoralTimeline)
+-- >>> difference t1 t2
+--     x
+--
+-- >>> let t1 = fromNaive ("xxxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yyxx" :: PictoralTimeline)
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("x x x x " :: PictoralTimeline)
+-- >>> let t2 = fromNaive (" y y y y" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- x x x x
+--
+-- >>> let t1 = fromNaive ("xx xx xx xx " :: PictoralTimeline)
+-- >>> let t2 = fromNaive (" y  y  y  y" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- x  x  x  x
+difference
+  :: Ord t
+  => Timeline t p
+  -> Timeline t p
+  -> Timeline t p
+difference t1 t2
+  | isEmpty t1 = empty
+  | isEmpty t2 = t1
+  | otherwise = go t1 t2
+  where
+    go a b
+      | start x >= end y = difference a ys
+      | end x <= start y = unsafeCons x (difference xs b)
+      | otherwise = case x `subtract` y of
+        Null -> if end x <= end y
+                  then difference xs b
+                  else difference a ys
+        One e -> case end e `compare` end y of
+                   LT -> unsafeCons e (difference xs b)
+                   EQ -> unsafeCons e (difference xs ys)
+                   GT -> difference (unsafeCons e xs) ys 
+        Two e1 e2 -> case end e2 `compare` end y of
+                       LT -> unsafeConcat (fromList [e1, e2]) (difference xs b)
+                       EQ -> unsafeConcat (fromList [e1, e2]) (difference xs ys)
+                       GT -> unsafeCons e1 (difference (unsafeCons e2 xs) ys)
+      where
+        x = unsafeHead a
+        y = unsafeHead b
+        xs = tail a 
+        ys = tail b
 
 
                     

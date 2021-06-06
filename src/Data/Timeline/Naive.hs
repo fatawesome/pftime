@@ -862,12 +862,12 @@ difference a@(Timeline (x:xs)) b@(Timeline (y:ys))
                             else difference a (Timeline ys)
                   One e -> case end e `compare` end y of
                              LT -> Timeline (e : getTimeline (difference (Timeline xs) b))
-                             GT -> difference (Timeline (e:xs)) (Timeline ys)
                              EQ -> Timeline (e : getTimeline (difference (Timeline xs) (Timeline ys)))
+                             GT -> difference (Timeline (e:xs)) (Timeline ys)
                   Two e1 e2 -> case end e2 `compare` end y of
                                  LT -> Timeline (e1 : e2 : getTimeline (difference (Timeline xs) b))
-                                 GT -> Timeline (e1 : getTimeline (difference (Timeline (e2:xs)) (Timeline ys)))
                                  EQ -> Timeline (e1 : e2 : getTimeline (difference (Timeline xs) (Timeline ys)))
+                                 GT -> Timeline (e1 : getTimeline (difference (Timeline (e2:xs)) (Timeline ys)))
 
 -----------------------------------------------------------------------------
 -- * Transformations

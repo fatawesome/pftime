@@ -21,7 +21,7 @@ import           Data.Foldable             (asum)
 import           Data.Maybe                (mapMaybe)
 
 import           Data.Timeline.Event       as Event hiding (shiftWith)
-import           Data.Timeline.Interval    hiding (intersect, shiftWith)
+import           Data.Timeline.Interval    hiding (intersect, shiftWith, Null, One, Two, difference)
 import qualified Data.Timeline.Interval    as Interval
 import           Data.Timeline.Overlapping as Overlapping
 import           GHC.Base                  (join)
@@ -326,7 +326,7 @@ delete i@(Interval (l, r)) timeline@(Timeline (x@(Event ix@(Interval (_, rx)) px
 
   | otherwise = timeline
   where
-    diff = subtract ix i
+    diff = Interval.subtract ix i
     insertPayload is p = map (`Event` p) is
 
 -- | \( O(n) \). Return suffix of timeline after the first `n` elements, or empty timeline if n > size timeline.
@@ -800,32 +800,74 @@ intersectWith
   | otherwise = error "One or multiple timelines do not satisfy timeline properties."
 
 
--- TODO: optimization
--- Number of iterations for one interval can be reduced given the fact that
--- Timeline is ascending and non-overlapping (see isValid).
--- When x_2 (end of interval) is less than y_1 (beginning of the next interval to compare with)
--- all subsequent operations for current interval can be canceled.
-
--- | Find difference of firs timeline from second.
+-- | /O(N+M)./ Find how first timeline is different from second.
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `difference` (mkPictoralTimeline "yyy")
--- ""
+-- >>> let t1 = "xxx" :: PictoralTimeline
+-- >>> let t2 = "yyy" :: PictoralTimeline
+-- >>> difference t1 t2 == empty
+-- True
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `difference` (mkPictoralTimeline "   yyy")
--- "xxx"
+-- >>> let t1 = "xxx    " :: PictoralTimeline
+-- >>> let t2 = "    yyy" :: PictoralTimeline
+-- >>> difference t1 t2
+-- xxx
 --
--- >>> toString $ (mkPictoralTimeline "xxx") `difference` (mkPictoralTimeline "  yyy")
--- "xx"
+-- >>> let t1 = "xxx  " :: PictoralTimeline
+-- >>> let t2 = "  yyy" :: PictoralTimeline
+-- >>> difference t1 t2
+-- xx
 --
--- >>> toString $ (mkPictoralTimeline "xxx yyy") `difference` (mkPictoralTimeline "xx   yy")
--- "  x y"
+-- >>> let t1 = "xxx yyy" :: PictoralTimeline
+-- >>> let t2 = "xx   yy" :: PictoralTimeline
+-- >>> difference t1 t2
+--   x y
+--
+-- >>> let t1 = " yyy" :: PictoralTimeline
+-- >>> let t2 = "yxxx" :: PictoralTimeline
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = "yxxxx" :: PictoralTimeline
+-- >>> let t2 = "yxxx" :: PictoralTimeline
+-- >>> difference t1 t2
+--     x
+--
+-- >>> let t1 = "xxxx" :: PictoralTimeline
+-- >>> let t2 = "yyxx" :: PictoralTimeline
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = "x x x x " :: PictoralTimeline
+-- >>> let t2 = " y y y y" :: PictoralTimeline
+-- >>> difference t1 t2
+-- x x x x
+--
+-- >>> let t1 = "xx xx xx xx " :: PictoralTimeline
+-- >>> let t2 = " y  y  y  y" :: PictoralTimeline
+-- >>> difference t1 t2
+-- x  x  x  x
 difference
   :: Ord t
   => Timeline t p
   -> Timeline t p
   -> Timeline t p
-difference x (Timeline []) = x
-difference x (Timeline ((Event iy _):ys)) = delete iy x `difference` Timeline ys
+difference (Timeline []) _ = empty
+difference a (Timeline []) = a
+difference a@(Timeline (x:xs)) b@(Timeline (y:ys))
+  | start x >= end y = difference a (Timeline ys)
+  | end x <= start y = Timeline (x : getTimeline (difference (Timeline xs) b))
+  | otherwise = case x `Event.subtract` y of
+                  Null -> if end x <= end y
+                            then difference (Timeline xs) b
+                            else difference a (Timeline ys)
+                  One e -> case end e `compare` end y of
+                             LT -> Timeline (e : getTimeline (difference (Timeline xs) b))
+                             GT -> difference (Timeline (e:xs)) (Timeline ys)
+                             EQ -> Timeline (e : getTimeline (difference (Timeline xs) (Timeline ys)))
+                  Two e1 e2 -> case end e2 `compare` end y of
+                                 LT -> Timeline (e1 : e2 : getTimeline (difference (Timeline xs) b))
+                                 GT -> Timeline (e1 : getTimeline (difference (Timeline (e2:xs)) (Timeline ys)))
+                                 EQ -> Timeline (e1 : e2 : getTimeline (difference (Timeline xs) (Timeline ys)))
 
 -----------------------------------------------------------------------------
 -- * Transformations

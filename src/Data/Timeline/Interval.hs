@@ -97,11 +97,17 @@ concat :: Interval t -> Interval t -> Interval t
 concat (Interval a) (Interval b) = Interval (fst a, snd b)
 
 
---data IntervalDifference t = Null | Single (Interval t) | Tuple (Interval t, Interval t)
---difference :: Ord t => Interval t -> Interval t -> IntervalDifference t
---difference x@(Interval (xl, xr)) y@(Interval (yl, yr))
---  | xl > yr || xr < yl || (xl > yl && xr < yr) = Null
---  | xl 
+data IntervalDiff t = Null | One (Interval t) | Two (Interval t) (Interval t)
+  deriving Show
+ 
+difference :: Ord t => Interval t -> Interval t -> IntervalDiff t
+difference x@(Interval (xl, xr)) (Interval (yl, yr)) 
+  | xl >= yl && xr <= yr = Null
+  | xl < yl && xr > yr = Two (mkInterval xl yl) (mkInterval yr xr)
+  | xr > yr = One (mkInterval yr xr)
+  | xl < yl = One (mkInterval xl yl)
+  | xl >= yr || xr <= yl = One x 
+  | otherwise = Null
 
 ------------------------------------------------------------------------------
 -- * Transformations

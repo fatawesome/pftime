@@ -176,4 +176,12 @@ splitAt
 splitAt point event@(Event (I.Interval (l, r)) payload)
   | point <= l || r <= point = Left event
   | otherwise = Right (eventCreator l point payload, eventCreator point r payload)
+  
+data EventDiff t p = Null | One (Event t p) | Two (Event t p) (Event t p)
+
+subtract :: Ord t => Event t p -> Event t p -> EventDiff t p
+subtract (Event xi xp) (Event yi _) = case I.difference xi yi of 
+  I.Null      -> Null
+  I.One i     -> One (Event i xp)
+  I.Two ai bi -> Two (Event ai xp) (Event bi xp)   
 

@@ -309,7 +309,6 @@ deleteEvents interval events = delete' (binarySearchIndices interval events) eve
         leftPart   = leftBound `V.cons` V.unsafeInit (fst (V.splitAt left es))
         rightPart  = V.unsafeTail (snd $ V.splitAt right es) `V.snoc` rightBound
         
-
 -----------------------------------------------------------------------------
 -- * Extracting sub-timelines.
 

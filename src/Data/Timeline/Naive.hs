@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module : Timeline

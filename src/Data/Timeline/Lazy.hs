@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Data.Timeline.Lazy where
 
@@ -11,10 +11,10 @@ import qualified Data.Timeline.Naive  as Naive
 import           Data.Timeline.Pictoral as Pic
 import           Prelude                        hiding (head, tail)
 import           Data.Timeline.Event 
-import           Data.Timeline.Interval        
-import           Data.List (sortOn)
-import           Data.String            (IsString (..))
-import           Test.QuickCheck           hiding (shrink)
+import           Data.Timeline.Interval         hiding (difference)     
+import           Data.List   (sortOn)
+import           Data.String (IsString (..))
+import           Test.QuickCheck                hiding (shrink)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -280,13 +280,20 @@ intersectWith f t1@(Chunk x xs) t2@(Chunk y ys)
       else intersectWith f t1 ys 
 
 difference :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
-difference = error "not implemented"
+difference Empty _ = Empty
+difference x Empty = x
+difference a@(Chunk x xs) b@(Chunk y ys)
+  | chunkStart x >= chunkEnd y = difference a ys
+  | chunkEnd x <= chunkStart y = Chunk x (difference xs b)
+  | otherwise = error "not implemented"
+  
+  
 
 -----------------------------------------------------------------------------
 -- * Internals    
 
 chunkSize :: Int
-chunkSize = 2
+chunkSize = 8
 
 tuplify2 :: Maybe [a] -> Maybe (a, a)
 tuplify2 (Just [x, y]) = Just (x, y)
@@ -354,3 +361,9 @@ mergeChunks f a b
   | Strict.size a == 0 = chunk b Empty
   | Strict.size b == 0 = chunk a Empty
   | otherwise = fromStricts $ Strict.toChunksOfSize chunkSize (Strict.mergeW f a b)
+
+chunkStart :: Strict.Timeline t p -> t
+chunkStart = Strict.unsafeStartTime
+
+chunkEnd :: Strict.Timeline t p -> t
+chunkEnd = Strict.unsafeEndTime

@@ -1,22 +1,25 @@
 module Merge where
   
-import Test.QuickCheck
-import Criterion.Main
+import Data.Default (def)
+import AutoBench.QuickCheck
+import AutoBench.Types
   
-import Data.Timeline.Naive as N
-import Data.Timeline.Strict as S
-import Data.Timeline.Lazy as L
+import qualified Data.Timeline.Naive as N
+import qualified Data.Timeline.Strict as S
+import qualified Data.Timeline.Lazy as L
+import qualified Data.Timeline.Pictoral as P
 
-naiveOfSize :: Int -> IO (N.Timeline Int Char)
-naiveOfSize n = generate (resize n arbitrary :: Gen (N.Timeline Int Char))
+naiveMerge :: P.PictoralTimeline -> P.PictoralTimeline -> P.PictoralTimeline
+naiveMerge = N.merge
 
-benchOfSize :: Int -> IO Benchmark
-benchOfSize n = do
-  a <- naiveOfSize n
-  b <- naiveOfSize n
-  return $ bench (show n) $ nf (N.merge a) b 
+strictMerge :: P.PictoralTimeline -> P.PictoralTimeline -> P.PictoralTimeline
+strictMerge a b = S.toNaive $ S.merge (S.fromNaive a) (S.fromNaive b)
 
-group = bgroup "Naive.merge" <$> mapM benchOfSize [100, 200..1000]
+lazyMerge :: P.PictoralTimeline -> P.PictoralTimeline -> P.PictoralTimeline
+lazyMerge a b = L.toNaive $ L.merge (L.fromNaive a) (L.fromNaive b)
+
+ts :: TestSuite 
+ts  = def
 
 
 

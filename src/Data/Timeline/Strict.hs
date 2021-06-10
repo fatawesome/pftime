@@ -2,10 +2,13 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Data.Timeline.Strict where
 
 import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt, tail, subtract)
 import           Data.String            (IsString (..))
+import           GHC.Generics as G hiding (from, to)
 import           Data.Generics.Aliases hiding (GT)
 import           Data.Timeline.Event
 import           Data.Timeline.Interval hiding (overlaps, includes, difference, subtract, Null, One, Two)
@@ -14,6 +17,7 @@ import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
 import qualified Data.Vector            as V
 import           Test.QuickCheck           hiding (shrink)
+import Control.DeepSeq (NFData)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -23,7 +27,7 @@ import           Test.QuickCheck           hiding (shrink)
 
 data Timeline t p = Timeline {
   getTimeline :: !(V.Vector (Event t p))
-} deriving (Functor, Eq)
+} deriving (Functor, Eq, G.Generic, NFData)
 
 instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline
@@ -482,6 +486,13 @@ mergeEventsImpl f acc as bs
     accumulateB = if V.null acc
                     then V.singleton b
                     else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
+                    
+intersect
+  :: Ord t  
+  => Timeline t p 
+  -> Timeline t p
+  -> Timeline t p
+intersect = intersectWith (\_ b -> b)
  
 -- | /O(N+M)./ Intersect two timelines using conflict resolving function.
 -- 

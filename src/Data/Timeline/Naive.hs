@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module : Timeline
@@ -26,6 +27,7 @@ import qualified Data.Timeline.Interval    as Interval
 import           Data.Timeline.Overlapping as Overlapping
 import           GHC.Base                  (join)
 import           Test.QuickCheck           hiding (shrink)
+import GHC.Generics (Generic)
 
 
 -- $setup
@@ -47,7 +49,7 @@ import           Test.QuickCheck           hiding (shrink)
 -- > not (haveConflicts (toList t))
 newtype Timeline t p = Timeline
   { getTimeline :: [Event t p] -- ^ Sorted list of intervals.
-  } deriving (Show, Eq, Functor, NFData)
+  } deriving (Show, Eq, Functor, Generic, NFData)
 
 instance Ord t => Semigroup (Timeline t p) where
   (<>) = union (\_old new -> new)

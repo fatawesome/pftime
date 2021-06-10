@@ -8,6 +8,7 @@ import qualified Data.Timeline.Interval as I
 import           Control.DeepSeq 
 import           GHC.Generics
 import           Test.QuickCheck
+import Control.Monad
 
 data Event t p = Event {
   getInterval :: I.Interval t,
@@ -21,10 +22,10 @@ instance (Ord t, Arbitrary t, Arbitrary p) => Arbitrary (Event t p) where
   arbitrary = Event <$> arbitrary <*> arbitrary
 
 arbitraryEventList :: (Ord t, Arbitrary t, Arbitrary p) => Gen [Event t p]
-arbitraryEventList = sized $ \n -> 
-  frequency
-    [ (1, return [])
-    , (n, (:) <$> arbitrary <*> arbitraryEventList)]
+arbitraryEventList = sized $ \n -> replicateM n arbitrary 
+--  frequency
+--    [ (1, return [])
+--    , (n, (:) <$> arbitrary <*> arbitraryEventList)]
 
 -- | /O(1)/.
 --

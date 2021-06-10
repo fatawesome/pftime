@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Data.Timeline.Lazy where
 
@@ -15,6 +17,8 @@ import           Data.Timeline.Interval         hiding (difference)
 import           Data.List   (sortOn)
 import           Data.String (IsString (..))
 import           Test.QuickCheck                hiding (shrink)
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -26,7 +30,7 @@ import           Test.QuickCheck                hiding (shrink)
 data Timeline t p
   = Empty
   | Chunk !(Strict.Timeline t p) (Timeline t p)
-  deriving (Functor, Eq)
+  deriving (Functor, Eq, Generic, NFData)
 
 instance (Ord t, Num t) => IsString (Timeline t Char) where
   fromString = fromNaive . Pic.mkPictoralTimeline
@@ -287,6 +291,19 @@ difference a@(Chunk x xs) b@(Chunk y ys)
   | chunkEnd x <= chunkStart y = Chunk x (difference xs b)
   | otherwise = error "not implemented"
   
+-- | Update events using a reference timeline schedule.
+-- All of the events from the second timeline are overlayed
+-- over events from the first timeline (reference).
+-- Gaps from both the original timeline and the reference timeline are preserved.                 
+withReference
+  :: (Num rel, Ord rel)
+  => (abs -> abs -> rel) -- ^ time difference
+  -> (abs -> rel -> abs) -- ^ time addition
+  -> (a -> b -> c)       -- ^ payload combinator
+  -> Timeline abs a      -- ^ reference timeline 
+  -> Timeline rel b      -- ^ target timeline
+  -> Timeline abs c      -- ^ target timeline overlaid over reference
+withReference = error "not implemented"
   
 
 -----------------------------------------------------------------------------

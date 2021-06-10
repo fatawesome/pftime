@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f3473fe8b2d8dc2b52a23bf74549518d151dd5d7d3d808d16b913771b77efd3f
+-- hash: af8a0825bc5495042cdcba29bb5fee3ef72750488c081a3ff640a8ec02ef90ed
 
 name:           pftime
 version:        0.1.0.0
@@ -34,6 +34,7 @@ custom-setup
 library
   exposed-modules:
       Data.Timeline.Class
+      Data.Timeline.Combined
       Data.Timeline.Event
       Data.Timeline.Interval
       Data.Timeline.Lazy
@@ -75,8 +76,6 @@ library
 
 executable pftime-exe
   main-is: Main.hs
-  other-modules:
-      Paths_pftime
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -97,6 +96,9 @@ executable pftime-exe
     , text
     , time
     , vector
+  if false
+    other-modules:
+        Paths_pftime
   default-language: Haskell2010
 
 test-suite doctests
@@ -146,39 +148,6 @@ test-suite pftime-test
     , Chart-cairo
     , QuickCheck
     , base >=4.7 && <5
-    , codeworld-api ==0.3.1
-    , criterion
-    , deepseq
-    , extra >=1.7.7
-    , hspec
-    , pftime
-    , random
-    , split
-    , syb
-    , text
-    , time
-    , vector
-  default-language: Haskell2010
-
-benchmark naive-benchmark
-  type: exitcode-stdio-1.0
-  main-is: Main.hs
-  other-modules:
-      Helpers
-      Merge
-      Naive
-      Naive.Insert
-      Strict
-      Test
-      Paths_pftime
-  hs-source-dirs:
-      benchmarks
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      Chart
-    , Chart-cairo
-    , QuickCheck
-    , base
     , codeworld-api ==0.3.1
     , criterion
     , deepseq

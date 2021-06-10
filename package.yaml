@@ -41,6 +41,8 @@ dependencies:
 - deepseq
 - Chart
 - Chart-cairo
+- primitive
+- loops >= 0.2.0.2
 #- AutoBench
 
 library:

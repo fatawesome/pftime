@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+
 module Data.Timeline.Strict where
 
 import           Prelude                hiding (drop, dropWhile, filter, head, last, splitAt, tail, subtract)
@@ -15,9 +16,18 @@ import           Data.Timeline.Interval hiding (overlaps, includes, difference, 
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
 import           Data.Tuple.Extra
-import qualified Data.Vector            as V
 import           Test.QuickCheck           hiding (shrink)
 import Control.DeepSeq (NFData)
+
+import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as M
+import qualified Data.Vector.Generic as G
+import qualified Data.Vector.Generic.Mutable as GM
+
+import Control.Monad
+import Control.Monad.ST
+import Control.Monad.Primitive
+import Control.Monad.Loop
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -486,6 +496,87 @@ mergeEventsImpl f acc as bs
     accumulateB = if V.null acc
                     then V.singleton b
                     else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
+                    
+workPlsAlready 
+  :: (Char -> Char -> Char)
+  -> V.Vector (Event Int Char)
+  -> V.Vector (Event Int Char)
+  -> V.Vector (Event Int Char)
+workPlsAlready f as bs
+  | V.null as && V.null bs = V.empty
+  | V.null as = bs
+  | V.null bs = as
+  | otherwise = runST $ do 
+    result <- M.new (V.length as + V.length bs)  :: ST s (M.STVector s (Event Int Char))
+    xs <- V.thaw as :: ST s (M.STVector s (Event Int Char))
+    ys <- V.thaw bs :: ST s (M.STVector s (Event Int Char))  
+
+    let i = 0
+        j = 0
+        q = 0
+        
+    V.freeze result
+--  where
+--    go :: Int
+--       -> Int
+--       -> Int 
+--       -> ST s (M.STVector s (Event Int Char))
+--       -> ST s (M.STVector s (Event Int Char))
+--       -> ST s (M.STVector s (Event Int Char))
+--       -> ST s ()
+--    go i j q res_ xs_ ys_ 
+--      | i == lenXs && j == lenYs = return ()
+--      | M.null res_ = if x <= y
+--        then do 
+--          M.write res_ 0 x
+--          go (i+1) j 1 res_ xs_ ys_ 
+--        else do
+--          M.write res_ 0 y
+--          go i (j+1) 1 res_ xs_ ys_
+--      | otherwise = res_
+--      where
+--        x = M.read xs_ i
+--        y = M.read ys_ j
+--        r = M.read res_ q
+--        lenXs = M.length xs_
+--        lenYs = M.length ys_
+       
+   
+                    
+--mergeEventsImpl_
+--  :: (Char -> Char -> Char)
+--  -> V.Vector (Event Int Char)
+--  -> V.Vector (Event Int Char)
+--  -> V.Vector (Event Int Char)
+--  -> V.Vector (Event Int Char)
+--mergeEventsImpl_ f acc as bs 
+--  | V.null as && V.null bs && V.null acc = V.empty
+--  | V.null as && V.null bs  = acc
+--  | V.null as && V.null acc = bs
+--  | V.null bs && V.null acc = as
+--  | otherwise = runST $ do
+--    acc_ <- V.thaw acc :: ST s (M.STVector s (Event Int Char)) 
+--    xs  <- V.thaw as   :: ST s (M.STVector s (Event Int Char))
+--    ys  <- V.thaw bs   :: ST s (M.STVector s (Event Int Char))
+--    a <- M.read xs 0
+--    b <- M.read ys 0
+--    if a <= b
+--      then V.freeze acc_
+--      else return as
+--    a <- M.read as 0 :: ST s (Event t p)
+--    b <- M.read bs 0 :: ST s (Event t p)
+--    if getInterval a <= getInterval b
+--      then return acc
+--      else return as
+--  where
+--    a = M.read as 0 :: ST s (Event t p)
+--    b = M.read bs 0
+
+--runST $ do
+--  res <- M.new (M.length xs + M.length ys)
+
+mergeResult :: ST s (V.Vector (Event t p))
+mergeResult = error "not implemented"
                     
 intersect
   :: Ord t  

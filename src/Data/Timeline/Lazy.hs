@@ -384,3 +384,52 @@ chunkStart = Strict.unsafeStartTime
 
 chunkEnd :: Strict.Timeline t p -> t
 chunkEnd = Strict.unsafeEndTime
+
+---------------------------------
+
+merge' :: Timeline Int Char -> Timeline Int Char -> Timeline Int Char
+merge' = mergeWith' (\_ b -> b)
+
+mergeWith' :: (Char -> Char -> Char) -> Timeline Int Char -> Timeline Int Char -> Timeline Int Char
+mergeWith' _ Empty Empty = Empty
+mergeWith' _ t     Empty = t
+mergeWith' _ Empty t     = t
+mergeWith' f a b = foldr1 unsafeConcat segments
+  where
+    segments = map resolveConflicts (catEithers $ toSegments a b)
+    resolveConflicts (Left x) = x
+    resolveConflicts (Right (x, y)) = _mergeOverlappingWith' f x y
+    
+_mergeOverlappingWith' :: (Char -> Char -> Char) -> Timeline Int Char -> Timeline Int Char -> Timeline Int Char
+_mergeOverlappingWith' _ Empty Empty = Empty
+_mergeOverlappingWith' _ t     Empty = t
+_mergeOverlappingWith' _ Empty t     = t
+
+_mergeOverlappingWith' f (Chunk a as) (Chunk b Empty) = case mergeChunks' f a b of
+  Empty -> Empty
+  Chunk x Empty -> chunk x as
+  Chunk x remaining -> chunk x (_mergeOverlappingWith' f as remaining)
+
+_mergeOverlappingWith' f (Chunk a Empty) (Chunk b bs) = case mergeChunks' f a b of
+  Empty -> Empty
+  Chunk x Empty -> chunk x bs
+  Chunk x remaining -> chunk x (_mergeOverlappingWith' f remaining bs)
+
+_mergeOverlappingWith' f (Chunk a as) (Chunk b bs) = case mergeChunks' f a b of
+  Empty             -> Empty
+  Chunk x Empty     -> chunk x (mergeWith' f as bs)
+  Chunk x remaining ->
+    if unsafeEndTime remaining < unsafeStartTime as
+      then chunk x (_mergeOverlappingWith' f (remaining `unsafeConcat` as) bs)
+      else chunk x (_mergeOverlappingWith' f as (remaining `unsafeConcat` bs))
+      
+mergeChunks'
+  :: (Char -> Char -> Char)
+  -> Strict.Timeline Int Char
+  -> Strict.Timeline Int Char
+  -> Timeline Int Char
+mergeChunks' f a b
+  | Strict.size a == 0 && Strict.size b == 0 = Empty
+  | Strict.size a == 0 = chunk b Empty
+  | Strict.size b == 0 = chunk a Empty
+  | otherwise = fromStricts $ Strict.toChunksOfSize chunkSize (Strict.mergeWith' f a b)

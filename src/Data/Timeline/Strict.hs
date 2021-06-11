@@ -15,19 +15,14 @@ import           Data.Timeline.Event
 import           Data.Timeline.Interval hiding (overlaps, includes, difference, subtract, Null, One, Two)
 import qualified Data.Timeline.Naive    as Naive
 import qualified Data.Timeline.Pictoral as Pic (mkPictoralTimeline)
-import           Data.Tuple.Extra
 import           Test.QuickCheck           hiding (shrink)
 import Control.DeepSeq (NFData)
 
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as M
-import qualified Data.Vector.Generic as G
-import qualified Data.Vector.Generic.Mutable as GM
 
-import Control.Monad
 import Control.Monad.ST
-import Control.Monad.Primitive
-import Control.Monad.Loop
+import Debug.Trace (trace)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -497,87 +492,166 @@ mergeEventsImpl f acc as bs
                     then V.singleton b
                     else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
                     
-workPlsAlready 
+merge' 
+  :: Timeline Int Char 
+  -> Timeline Int Char
+  -> Timeline Int Char
+merge' = mergeWith' (\_ b -> b)
+
+-- | \( O(n+m) \). Returns timeline union of two timelines. For example,
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = "" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxx
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = "   yyy" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxxyyy
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = "yyy" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- yyy
+--
+-- >>> let a = "xxx" :: PictoralTimeline
+-- >>> let b = " yyy" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xyyy
+--
+-- >>> let a = " xxx" :: PictoralTimeline
+-- >>> let b = "yyy" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- yyyx
+--
+-- >>> let a = "xx" :: PictoralTimeline
+-- >>> let b = "   yy" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xx yy
+-- 
+-- >>> let a = " x " :: PictoralTimeline
+-- >>> let b = "x y" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxy
+-- 
+-- >>> let a = " x y" :: PictoralTimeline
+-- >>> let b = "x y" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxyy
+--
+-- >>> let a = " x y z" :: PictoralTimeline
+-- >>> let b = "x y z" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xxyyzz
+--
+-- >>> let a = "xxxxx" :: PictoralTimeline
+-- >>> let b = " a b" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive a) (fromNaive b)
+-- xaxbx
+--
+-- >>> let t1 = "xxx yyy zzz"   :: PictoralTimeline
+-- >>> let t2 = "  aaa bbb ccc" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive t1) (fromNaive t2)
+-- xxaaaybbbzccc
+--
+-- >>> let t1 = "xxxxxxxx"  :: PictoralTimeline
+-- >>> let t2 = " aa bb cc" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive t1) (fromNaive t2)
+-- xaaxbbxcc
+--
+-- >>> let t1 = " aa bb cc" :: PictoralTimeline
+-- >>> let t2 = "xxxxxxxx" :: PictoralTimeline
+-- >>> mergeWith' (\a b -> b) (fromNaive t1) (fromNaive t2)
+-- xxxxxxxxc
+mergeWith' 
   :: (Char -> Char -> Char)
-  -> V.Vector (Event Int Char)
-  -> V.Vector (Event Int Char)
-  -> V.Vector (Event Int Char)
-workPlsAlready f as bs
-  | V.null as && V.null bs = V.empty
-  | V.null as = bs
-  | V.null bs = as
-  | otherwise = runST $ do 
-    result <- M.new (V.length as + V.length bs)  :: ST s (M.STVector s (Event Int Char))
-    xs <- V.thaw as :: ST s (M.STVector s (Event Int Char))
-    ys <- V.thaw bs :: ST s (M.STVector s (Event Int Char))  
+  -> Timeline Int Char
+  -> Timeline Int Char
+  -> Timeline Int Char
+mergeWith' f as bs
+  | isEmpty as && isEmpty bs = empty
+  | isEmpty as = bs
+  | isEmpty bs = as
+  | otherwise = Timeline $ runST $ do 
+      result <- M.new ((size as + size bs) * 5)  :: ST s (M.STVector s (Event Int Char))
+      xs <- V.thaw (getTimeline as) :: ST s (M.STVector s (Event Int Char))
+      ys <- V.thaw (getTimeline bs) :: ST s (M.STVector s (Event Int Char))
+      q <- mergeGo f 0 0 0 result xs ys
+      let sliced_result = M.unsafeSlice 0 q result
+      V.freeze sliced_result
 
-    let i = 0
-        j = 0
-        q = 0
-        
-    V.freeze result
---  where
---    go :: Int
---       -> Int
---       -> Int 
---       -> ST s (M.STVector s (Event Int Char))
---       -> ST s (M.STVector s (Event Int Char))
---       -> ST s (M.STVector s (Event Int Char))
---       -> ST s ()
---    go i j q res_ xs_ ys_ 
---      | i == lenXs && j == lenYs = return ()
---      | M.null res_ = if x <= y
---        then do 
---          M.write res_ 0 x
---          go (i+1) j 1 res_ xs_ ys_ 
---        else do
---          M.write res_ 0 y
---          go i (j+1) 1 res_ xs_ ys_
---      | otherwise = res_
---      where
---        x = M.read xs_ i
---        y = M.read ys_ j
---        r = M.read res_ q
---        lenXs = M.length xs_
---        lenYs = M.length ys_
-       
-   
-                    
---mergeEventsImpl_
---  :: (Char -> Char -> Char)
---  -> V.Vector (Event Int Char)
---  -> V.Vector (Event Int Char)
---  -> V.Vector (Event Int Char)
---  -> V.Vector (Event Int Char)
---mergeEventsImpl_ f acc as bs 
---  | V.null as && V.null bs && V.null acc = V.empty
---  | V.null as && V.null bs  = acc
---  | V.null as && V.null acc = bs
---  | V.null bs && V.null acc = as
---  | otherwise = runST $ do
---    acc_ <- V.thaw acc :: ST s (M.STVector s (Event Int Char)) 
---    xs  <- V.thaw as   :: ST s (M.STVector s (Event Int Char))
---    ys  <- V.thaw bs   :: ST s (M.STVector s (Event Int Char))
---    a <- M.read xs 0
---    b <- M.read ys 0
---    if a <= b
---      then V.freeze acc_
---      else return as
---    a <- M.read as 0 :: ST s (Event t p)
---    b <- M.read bs 0 :: ST s (Event t p)
---    if getInterval a <= getInterval b
---      then return acc
---      else return as
---  where
---    a = M.read as 0 :: ST s (Event t p)
---    b = M.read bs 0
+mergeGo
+  :: (Char -> Char -> Char) 
+  -> Int -- ^ i counter 
+  -> Int -- ^ j counter
+  -> Int -- ^ q counter            
+  -> M.STVector s (Event Int Char) -- ^ result 
+  -> M.STVector s (Event Int Char) -- ^ as
+  -> M.STVector s (Event Int Char) -- ^ bs
+  -> ST s Int
+mergeGo f i j q result xs ys = do
+  let xl = M.length xs
+  let yl = M.length ys
 
---runST $ do
---  res <- M.new (M.length xs + M.length ys)
+  if i >= xl || j >= yl then do
+    if i >= xl && j >= yl then do
+      return q
+    else do
+      if i >= xl then do
+        y <- M.read ys j
+        resLast <- M.read result (q - 1)
+        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f resLast y :: ST s (M.STVector s (Event Int Char))
+        nq <- concatST 0 (q - 1) newEvents result
+        mergeGo f i (j + 1) nq result xs ys
+      else do
+        if j >= yl then do
+          x <- M.read xs i
+          resLast <- M.read result (q - 1)
+          newEvents <- V.thaw $ V.fromList $ mergeEventsWith f x resLast :: ST s (M.STVector s (Event Int Char))
+          nq <- concatST 0 (q - 1) newEvents result
+          mergeGo f (i + 1) j nq result xs ys
+        else do
+          error "Timelines are somehow wrong. Idk, debug it urself. Fuck you."
 
-mergeResult :: ST s (V.Vector (Event t p))
-mergeResult = error "not implemented"
-                    
+  else do
+    x <- M.read xs i
+    y <- M.read ys j
+
+    if x <= y then do
+      if q == 0 then do
+        M.write result q x
+        mergeGo f (i + 1) j (q + 1) result xs ys
+      else do
+        resLast <- M.read result (q - 1)
+        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f x resLast :: ST s (M.STVector s (Event Int Char))
+        nq <- concatST 0 (q - 1) newEvents result
+        mergeGo f (i + 1) j nq result xs ys
+    else do
+      if q == 0 then do
+        M.write result q y
+        mergeGo f i (j + 1) (q + 1) result xs ys
+      else do
+        resLast <- M.read result (q - 1)
+        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f resLast y :: ST s (M.STVector s (Event Int Char))
+        nq <- concatST 0 (q - 1) newEvents result
+        mergeGo f i (j + 1) nq result xs ys
+
+concatST 
+  :: Int -- ^ counter for events to be inserted 
+  -> Int -- ^ current result length 
+  -> M.STVector s (Event Int Char) -- ^ new events
+  -> M.STVector s (Event Int Char) -- ^ result
+  -> ST s Int
+concatST innerIteractor q newEvents result = do
+  let nel = M.length newEvents
+  if innerIteractor >= nel then do
+    return q
+  else do
+    boll <- M.read newEvents innerIteractor
+    M.write result q boll
+    concatST (innerIteractor + 1) (q + 1) newEvents result
+
 intersect
   :: Ord t  
   => Timeline t p 

@@ -4,7 +4,7 @@ cabal-version: 1.24
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0525d56a04a5c7cdb46d98679ae652616e8230452809ace07f1ff18c24941a35
+-- hash: f42e3cf365e4042f194963472aeb4765a6dd5c34be748aafd80f11f341c5dd83
 
 name:           pftime
 version:        0.1.0.0
@@ -66,7 +66,7 @@ library
     , deepseq
     , extra >=1.7.7
     , hspec
-    , loops >=0.2.0.2
+    , monad-loops
     , primitive
     , random
     , split
@@ -91,7 +91,7 @@ executable pftime-exe
     , deepseq
     , extra >=1.7.7
     , hspec
-    , loops >=0.2.0.2
+    , monad-loops
     , pftime
     , primitive
     , random
@@ -127,7 +127,7 @@ test-suite doctests
     , doctest
     , extra >=1.7.7
     , hspec
-    , loops >=0.2.0.2
+    , monad-loops
     , pftime
     , primitive
     , random
@@ -159,7 +159,7 @@ test-suite pftime-test
     , deepseq
     , extra >=1.7.7
     , hspec
-    , loops >=0.2.0.2
+    , monad-loops
     , pftime
     , primitive
     , random

@@ -42,7 +42,7 @@ dependencies:
 - Chart
 - Chart-cairo
 - primitive
-- loops >= 0.2.0.2
+- monad-loops
 #- AutoBench
 
 library:

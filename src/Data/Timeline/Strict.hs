@@ -618,7 +618,7 @@ mergeGo f i j q result xs ys = do
     x <- M.read xs i
     y <- M.read ys j
 
-    if x <= y then do
+    if start x <= start y then do
       if q == 0 then do
         M.write result q x
         mergeGo f (i + 1) j (q + 1) result xs ys

@@ -274,7 +274,7 @@ intersectWith _ Empty _ = Empty
 intersectWith _ _ Empty = Empty
 intersectWith f t1@(Chunk x xs) t2@(Chunk y ys) 
   = if left <= right
-    then Chunk (Strict.intersectWith f x y) next
+    then Chunk (Strict.intersectWith' f x y) next
     else next
   where
     left  = max (Strict.unsafeStartTime x) (Strict.unsafeStartTime y)
@@ -283,13 +283,70 @@ intersectWith f t1@(Chunk x xs) t2@(Chunk y ys)
       then intersectWith f xs t2
       else intersectWith f t1 ys 
 
+-- | /O(N+M)./ Find how first timeline is different from second.
+--
+-- >>> let t1 = fromNaive ("xxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yyy" :: PictoralTimeline)
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("xxx    " :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("    yyy" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- xxx
+--
+-- >>> let t1 = fromNaive ("xxx  " :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("  yyy" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- xx
+--
+-- >>> let t1 = fromNaive ("xxx yyy" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("xx   yy" :: PictoralTimeline)
+-- >>> difference t1 t2
+--   x y
+--
+-- >>> let t1 = fromNaive (" yyy" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yxxx" :: PictoralTimeline)
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("yxxxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yxxx" :: PictoralTimeline)
+-- >>> difference t1 t2
+--     x
+--
+-- >>> let t1 = fromNaive ("xxxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yyxx" :: PictoralTimeline)
+-- >>> difference t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("x x x x " :: PictoralTimeline)
+-- >>> let t2 = fromNaive (" y y y y" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- x x x x
+--
+-- >>> let t1 = fromNaive ("xx xx xx xx " :: PictoralTimeline)
+-- >>> let t2 = fromNaive (" y  y  y  y" :: PictoralTimeline)
+-- >>> difference t1 t2
+-- x  x  x  x
 difference :: Ord t => Timeline t p -> Timeline t p -> Timeline t p
 difference Empty _ = Empty
 difference x Empty = x
 difference a@(Chunk x xs) b@(Chunk y ys)
   | chunkStart x >= chunkEnd y = difference a ys
   | chunkEnd x <= chunkStart y = Chunk x (difference xs b)
-  | otherwise = error "not implemented"
+  | otherwise = go $ x `Strict.difference'` y
+  where
+    go diff
+      | Strict.isEmpty diff = if chunkEnd x <= chunkEnd y
+        then difference xs b
+        else difference a ys
+      | otherwise = case chunkEnd diff `compare` chunkEnd y of
+                      LT -> Chunk diff (difference xs b)
+                      EQ -> Chunk diff (difference xs ys)
+                      GT -> difference (Chunk diff xs) ys  
+        
+    
   
 -- | Update events using a reference timeline schedule.
 -- All of the events from the second timeline are overlayed
@@ -303,14 +360,13 @@ withReference
   -> Timeline abs a      -- ^ reference timeline 
   -> Timeline rel b      -- ^ target timeline
   -> Timeline abs c      -- ^ target timeline overlaid over reference
-withReference = error "not implemented"
-  
+withReference diff add f as bs = error "not impl"
 
 -----------------------------------------------------------------------------
 -- * Internals    
 
 chunkSize :: Int
-chunkSize = 8
+chunkSize = 128
 
 tuplify2 :: Maybe [a] -> Maybe (a, a)
 tuplify2 (Just [x, y]) = Just (x, y)
@@ -387,49 +443,49 @@ chunkEnd = Strict.unsafeEndTime
 
 ---------------------------------
 
-merge' :: Timeline Int Char -> Timeline Int Char -> Timeline Int Char
-merge' = mergeWith' (\_ b -> b)
-
-mergeWith' :: (Char -> Char -> Char) -> Timeline Int Char -> Timeline Int Char -> Timeline Int Char
-mergeWith' _ Empty Empty = Empty
-mergeWith' _ t     Empty = t
-mergeWith' _ Empty t     = t
-mergeWith' f a b = foldr1 unsafeConcat segments
-  where
-    segments = map resolveConflicts (catEithers $ toSegments a b)
-    resolveConflicts (Left x) = x
-    resolveConflicts (Right (x, y)) = _mergeOverlappingWith' f x y
-    
-_mergeOverlappingWith' :: (Char -> Char -> Char) -> Timeline Int Char -> Timeline Int Char -> Timeline Int Char
-_mergeOverlappingWith' _ Empty Empty = Empty
-_mergeOverlappingWith' _ t     Empty = t
-_mergeOverlappingWith' _ Empty t     = t
-
-_mergeOverlappingWith' f (Chunk a as) (Chunk b Empty) = case mergeChunks' f a b of
-  Empty -> Empty
-  Chunk x Empty -> chunk x as
-  Chunk x remaining -> chunk x (_mergeOverlappingWith' f as remaining)
-
-_mergeOverlappingWith' f (Chunk a Empty) (Chunk b bs) = case mergeChunks' f a b of
-  Empty -> Empty
-  Chunk x Empty -> chunk x bs
-  Chunk x remaining -> chunk x (_mergeOverlappingWith' f remaining bs)
-
-_mergeOverlappingWith' f (Chunk a as) (Chunk b bs) = case mergeChunks' f a b of
-  Empty             -> Empty
-  Chunk x Empty     -> chunk x (mergeWith' f as bs)
-  Chunk x remaining ->
-    if unsafeEndTime remaining < unsafeStartTime as
-      then chunk x (_mergeOverlappingWith' f (remaining `unsafeConcat` as) bs)
-      else chunk x (_mergeOverlappingWith' f as (remaining `unsafeConcat` bs))
-      
-mergeChunks'
-  :: (Char -> Char -> Char)
-  -> Strict.Timeline Int Char
-  -> Strict.Timeline Int Char
-  -> Timeline Int Char
-mergeChunks' f a b
-  | Strict.size a == 0 && Strict.size b == 0 = Empty
-  | Strict.size a == 0 = chunk b Empty
-  | Strict.size b == 0 = chunk a Empty
-  | otherwise = fromStricts $ Strict.toChunksOfSize chunkSize (Strict.mergeWith' f a b)
+--merge' :: Timeline Int Char -> Timeline Int Char -> Timeline Int Char
+--merge' = mergeWith' (\_ b -> b)
+--
+--mergeWith' :: (Char -> Char -> Char) -> Timeline Int Char -> Timeline Int Char -> Timeline Int Char
+--mergeWith' _ Empty Empty = Empty
+--mergeWith' _ t     Empty = t
+--mergeWith' _ Empty t     = t
+--mergeWith' f a b = foldr1 unsafeConcat segments
+--  where
+--    segments = map resolveConflicts (catEithers $ toSegments a b)
+--    resolveConflicts (Left x) = x
+--    resolveConflicts (Right (x, y)) = _mergeOverlappingWith' f x y
+--    
+--_mergeOverlappingWith' :: (Char -> Char -> Char) -> Timeline Int Char -> Timeline Int Char -> Timeline Int Char
+--_mergeOverlappingWith' _ Empty Empty = Empty
+--_mergeOverlappingWith' _ t     Empty = t
+--_mergeOverlappingWith' _ Empty t     = t
+--
+--_mergeOverlappingWith' f (Chunk a as) (Chunk b Empty) = case mergeChunks' f a b of
+--  Empty -> Empty
+--  Chunk x Empty -> chunk x as
+--  Chunk x remaining -> chunk x (_mergeOverlappingWith' f as remaining)
+--
+--_mergeOverlappingWith' f (Chunk a Empty) (Chunk b bs) = case mergeChunks' f a b of
+--  Empty -> Empty
+--  Chunk x Empty -> chunk x bs
+--  Chunk x remaining -> chunk x (_mergeOverlappingWith' f remaining bs)
+--
+--_mergeOverlappingWith' f (Chunk a as) (Chunk b bs) = case mergeChunks' f a b of
+--  Empty             -> Empty
+--  Chunk x Empty     -> chunk x (mergeWith' f as bs)
+--  Chunk x remaining ->
+--    if unsafeEndTime remaining < unsafeStartTime as
+--      then chunk x (_mergeOverlappingWith' f (remaining `unsafeConcat` as) bs)
+--      else chunk x (_mergeOverlappingWith' f as (remaining `unsafeConcat` bs))
+--      
+--mergeChunks'
+--  :: (Char -> Char -> Char)
+--  -> Strict.Timeline Int Char
+--  -> Strict.Timeline Int Char
+--  -> Timeline Int Char
+--mergeChunks' f a b
+--  | Strict.size a == 0 && Strict.size b == 0 = Empty
+--  | Strict.size a == 0 = chunk b Empty
+--  | Strict.size b == 0 = chunk a Empty
+--  | otherwise = fromStricts $ Strict.toChunksOfSize chunkSize (Strict.mergeWith' f a b)

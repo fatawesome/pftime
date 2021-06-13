@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.Timeline.Strict where
 
@@ -493,9 +494,10 @@ mergeEventsImpl f acc as bs
                     else V.init acc V.++ V.fromList (mergeEventsWith f (V.last acc) b)
                     
 merge' 
-  :: Timeline Int Char 
-  -> Timeline Int Char
-  -> Timeline Int Char
+  :: Ord t
+  => Timeline t p
+  -> Timeline t p
+  -> Timeline t p
 merge' = mergeWith' (\_ b -> b)
 
 -- | \( O(n+m) \). Returns timeline union of two timelines. For example,
@@ -565,30 +567,34 @@ merge' = mergeWith' (\_ b -> b)
 -- >>> mergeWith' (\a b -> b) (fromNaive t1) (fromNaive t2)
 -- xxxxxxxxc
 mergeWith' 
-  :: (Char -> Char -> Char)
-  -> Timeline Int Char
-  -> Timeline Int Char
-  -> Timeline Int Char
+  :: forall t p
+  . (Ord t)
+  => (p -> p -> p)
+  -> Timeline t p
+  -> Timeline t p
+  -> Timeline t p
 mergeWith' f as bs
   | isEmpty as && isEmpty bs = empty
   | isEmpty as = bs
   | isEmpty bs = as
   | otherwise = Timeline $ runST $ do 
-      result <- M.new ((size as + size bs) * 5)  :: ST s (M.STVector s (Event Int Char))
-      xs <- V.thaw (getTimeline as) :: ST s (M.STVector s (Event Int Char))
-      ys <- V.thaw (getTimeline bs) :: ST s (M.STVector s (Event Int Char))
+      result <- M.new ((size as + size bs) * 5)  :: ST s (M.STVector s (Event t p))
+      xs <- V.thaw (getTimeline as) :: ST s (M.STVector s (Event t p))
+      ys <- V.thaw (getTimeline bs) :: ST s (M.STVector s (Event t p))
       q <- mergeGo f 0 0 0 result xs ys
       let sliced_result = M.unsafeSlice 0 q result
       V.freeze sliced_result
 
 mergeGo
-  :: (Char -> Char -> Char) 
+  :: forall t p s
+  . (Ord t)
+  => (p -> p -> p)
   -> Int -- ^ i counter 
   -> Int -- ^ j counter
   -> Int -- ^ q counter            
-  -> M.STVector s (Event Int Char) -- ^ result 
-  -> M.STVector s (Event Int Char) -- ^ as
-  -> M.STVector s (Event Int Char) -- ^ bs
+  -> M.STVector s (Event t p) -- ^ result
+  -> M.STVector s (Event t p) -- ^ as
+  -> M.STVector s (Event t p) -- ^ bs
   -> ST s Int
 mergeGo f i j q result xs ys = do
   let xl = M.length xs
@@ -601,14 +607,14 @@ mergeGo f i j q result xs ys = do
       if i >= xl then do
         y <- M.read ys j
         resLast <- M.read result (q - 1)
-        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f resLast y :: ST s (M.STVector s (Event Int Char))
+        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f resLast y :: ST s (M.STVector s (Event t p))
         nq <- concatST 0 (q - 1) newEvents result
         mergeGo f i (j + 1) nq result xs ys
       else do
         if j >= yl then do
           x <- M.read xs i
           resLast <- M.read result (q - 1)
-          newEvents <- V.thaw $ V.fromList $ mergeEventsWith f x resLast :: ST s (M.STVector s (Event Int Char))
+          newEvents <- V.thaw $ V.fromList $ mergeEventsWith f x resLast :: ST s (M.STVector s (Event t p))
           nq <- concatST 0 (q - 1) newEvents result
           mergeGo f (i + 1) j nq result xs ys
         else do
@@ -624,7 +630,7 @@ mergeGo f i j q result xs ys = do
         mergeGo f (i + 1) j (q + 1) result xs ys
       else do
         resLast <- M.read result (q - 1)
-        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f x resLast :: ST s (M.STVector s (Event Int Char))
+        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f x resLast :: ST s (M.STVector s (Event t p))
         nq <- concatST 0 (q - 1) newEvents result
         mergeGo f (i + 1) j nq result xs ys
     else do
@@ -633,15 +639,15 @@ mergeGo f i j q result xs ys = do
         mergeGo f i (j + 1) (q + 1) result xs ys
       else do
         resLast <- M.read result (q - 1)
-        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f resLast y :: ST s (M.STVector s (Event Int Char))
+        newEvents <- V.thaw $ V.fromList $ mergeEventsWith f resLast y :: ST s (M.STVector s (Event t p))
         nq <- concatST 0 (q - 1) newEvents result
         mergeGo f i (j + 1) nq result xs ys
 
 concatST 
   :: Int -- ^ counter for events to be inserted 
   -> Int -- ^ current result length 
-  -> M.STVector s (Event Int Char) -- ^ new events
-  -> M.STVector s (Event Int Char) -- ^ result
+  -> M.STVector s (Event t p) -- ^ new events
+  -> M.STVector s (Event t p) -- ^ result
   -> ST s Int
 concatST innerIteractor q newEvents result = do
   let nel = M.length newEvents
@@ -681,9 +687,9 @@ intersect = intersectWith (\_ b -> b)
 -- >>> intersectWith (\a b -> a) x y
 --   x x x x                      
 intersectWith 
-  :: Ord t 
-  => (p -> p -> p) 
-  -> Timeline t p 
+  :: Ord t
+  => (p -> p -> p)
+  -> Timeline t p
   -> Timeline t p
   -> Timeline t p
 intersectWith f xs ys
@@ -701,7 +707,85 @@ intersectWith f xs ys
     next = if end x < end y
       then intersectWith f xss ys
       else intersectWith f xs yss
-      
+
+intersect'
+  :: Ord t
+  => Timeline t a
+  -> Timeline t b
+  -> Timeline t b
+intersect' = intersectWith' (\_ b -> b)
+
+-- | /O(N+M)./ Intersect two timelines using conflict resolving function.
+--
+-- >>> let x = fromNaive ("xxxxx" :: PictoralTimeline)
+-- >>> let y = fromNaive (" y y " :: PictoralTimeline)
+-- >>> intersectWith' (\a b -> a) x y
+--  x x
+--
+-- >>> let x = fromNaive (" x x " :: PictoralTimeline)
+-- >>> let y = fromNaive ("yyyyy" :: PictoralTimeline)
+-- >>> intersectWith' (\a b -> a) x y
+--  x x
+--
+-- >>> let x = fromNaive ("xxx " :: PictoralTimeline)
+-- >>> let y = fromNaive (" yyy" :: PictoralTimeline)
+-- >>> intersectWith' (\a b -> a) x y
+--  xx
+--
+-- >>> let x = fromNaive ("xxx xxx xxx" :: PictoralTimeline)
+-- >>> let y = fromNaive ("  yyy yyy  " :: PictoralTimeline)
+-- >>> intersectWith' (\a b -> a) x y
+--   x x x x
+intersectWith'
+  :: forall t a b c
+  . Ord t
+  => (a -> b -> c)
+  -> Timeline t a
+  -> Timeline t b
+  -> Timeline t c
+intersectWith' f xs ys
+  | isEmpty xs || isEmpty ys = empty
+  | otherwise = Timeline $ runST $ do
+    as <- V.thaw (getTimeline xs) :: ST s (M.STVector s (Event t a))
+    bs <- V.thaw (getTimeline ys) :: ST s (M.STVector s (Event t b))
+    result <- M.new (2 * max (size xs) (size ys)) :: ST s (M.STVector s (Event t c))
+    q <- intersectGo f 0 0 0 result as bs
+    let sliced_result = M.unsafeSlice 0 q result
+    V.freeze sliced_result
+
+intersectGo
+  :: forall t a b c s
+  . Ord t
+  => (a -> b -> c)
+  -> Int -- ^ i counter
+  -> Int -- ^ j counter
+  -> Int -- ^ q counter
+  -> M.STVector s (Event t c) -- ^ result
+  -> M.STVector s (Event t a) -- ^ as
+  -> M.STVector s (Event t b) -- ^ bs
+  -> ST s Int
+intersectGo f i j q result xs ys = do
+  let xl = M.length xs
+  let yl = M.length ys
+
+  if i >= xl || j >= yl then do
+    return q -- if one of vectors is empty, there is nothing to intersect.
+  else do
+    x <- M.read xs i
+    y <- M.read ys j
+    let left  = max (start x) (start y)
+        right = min (end x) (end y)
+
+    let next = \qPlus -> do if end x < end y
+                              then intersectGo f (i + 1) j (q + qPlus) result xs ys
+                              else intersectGo f i (j + 1) (q + qPlus) result xs ys
+
+    if left <= right then do
+      M.write result q $ eventCreator left right (f (getPayload x) (getPayload y))
+      next 1
+    else do
+      next 0
+
 -- | /O(N+M)./ Find how first timeline is different from second.
 --
 -- >>> let t1 = fromNaive ("xxx" :: PictoralTimeline)
@@ -779,7 +863,129 @@ difference t1 t2
         xs = tail a 
         ys = tail b
 
+-- | /O(N+M)./ Find how first timeline is different from second.
+--
+-- >>> let t1 = fromNaive ("xxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yyy" :: PictoralTimeline)
+-- >>> difference' t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("xxx    " :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("    yyy" :: PictoralTimeline)
+-- >>> difference' t1 t2
+-- xxx
+--
+-- >>> let t1 = fromNaive ("xxx  " :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("  yyy" :: PictoralTimeline)
+-- >>> difference' t1 t2
+-- xx
+--
+-- >>> let t1 = fromNaive ("xxx yyy" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("xx   yy" :: PictoralTimeline)
+-- >>> difference' t1 t2
+--   x y
+--
+-- >>> let t1 = fromNaive (" yyy" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yxxx" :: PictoralTimeline)
+-- >>> difference' t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("yxxxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yxxx" :: PictoralTimeline)
+-- >>> difference' t1 t2
+--     x
+--
+-- >>> let t1 = fromNaive ("xxxx" :: PictoralTimeline)
+-- >>> let t2 = fromNaive ("yyxx" :: PictoralTimeline)
+-- >>> difference' t1 t2 == empty
+-- True
+--
+-- >>> let t1 = fromNaive ("x x x x " :: PictoralTimeline)
+-- >>> let t2 = fromNaive (" y y y y" :: PictoralTimeline)
+-- >>> difference' t1 t2
+-- x x x x
+--
+-- >>> let t1 = fromNaive ("xx xx xx xx " :: PictoralTimeline)
+-- >>> let t2 = fromNaive (" y  y  y  y" :: PictoralTimeline)
+-- >>> difference' t1 t2
+-- x  x  x  x
+difference'
+  :: forall t p
+  . Ord t
+  => Timeline t p
+  -> Timeline t p
+  -> Timeline t p
+difference' t1 t2
+  | isEmpty t1 = empty
+  | isEmpty t2 = t1
+  | otherwise = Timeline $ runST $ do
+    result <- M.new (2 * max (size t1) (size t2)) :: ST s (M.STVector s (Event t p))
+    xs <- V.thaw (getTimeline t1) :: ST s (M.STVector s (Event t p))
+    ys <- V.thaw (getTimeline t2) :: ST s (M.STVector s (Event t p))
+    q <- differenceGo 0 0 0 result xs ys
+    let sliced_result = M.unsafeSlice 0 q result
+    V.freeze sliced_result
 
+differenceGo
+  :: forall t p s
+  . Ord t
+  => Int -- ^ i counter
+  -> Int -- ^ j counter
+  -> Int -- ^ q counter
+  -> M.STVector s (Event t p) -- ^ result
+  -> M.STVector s (Event t p) -- ^ as
+  -> M.STVector s (Event t p) -- ^ bs
+  -> ST s Int
+differenceGo i j q result xs ys = do
+  let xl = M.length xs
+  let yl = M.length ys
+
+  if i >= xl || j >= yl then do
+    if i >= xl then do
+      return q
+    else do -- if no events in ys, copy the remaining of xs to the result.
+      x <- M.read xs i
+      M.write result q x
+      differenceGo (i + 1) j (q + 1) result xs ys
+  else do
+    x <- M.read xs i
+    y <- M.read ys j
+
+    if start x >= end y then do
+      differenceGo i (j + 1) q result xs ys
+    else do
+      if end x <= start y then do
+        M.write result q x
+        differenceGo (i + 1) j (q + 1) result xs ys
+      else do
+        let eventDiff = x `subtract` y
+        case eventDiff of
+          Null -> if end x <= end y
+                    then differenceGo (i + 1) j q result xs ys
+                    else differenceGo i (j + 1) q result xs ys
+          One e -> case end e `compare` end y of
+                     LT -> do
+                       M.write result q e
+                       differenceGo (i + 1) j (q + 1) result xs ys
+                     EQ -> do
+                       M.write result q e
+                       differenceGo (i + 1) (j + 1) (q + 1) result xs ys
+                     GT -> do
+                       M.write xs i e
+                       differenceGo i (j + 1) q result xs ys
+          Two e1 e2 -> case end e2 `compare` end y of
+                         LT -> do
+                           newEvents <- V.thaw $ V.fromList [e1, e2]
+                           nq <- concatST 2 q newEvents result
+                           differenceGo (i + 1) j nq result xs ys
+                         EQ -> do
+                           newEvents <- V.thaw $ V.fromList [e1, e2]
+                           nq <- concatST 2 q newEvents result
+                           differenceGo (i + 1) (j + 1) nq result xs ys
+                         GT -> do
+                           M.write result q e1
+                           M.write xs i e2
+                           differenceGo i (j + 1) (q + 1) result xs ys
                     
 -- | Update events using a reference timeline schedule.
 -- All of the events from the second timeline are overlayed
@@ -793,7 +999,7 @@ withReference
   -> Timeline abs a      -- ^ reference timeline 
   -> Timeline rel b      -- ^ target timeline
   -> Timeline abs c      -- ^ target timeline overlaid over reference
-withReference diff add f as bs = Timeline $ (unsafeIntersectionWithEvent combine . shrink diff) eventsA eventsB
+withReference diff add f as bs = Timeline $ (unsafeIntersectionWithEvent' combine . shrink diff) eventsA eventsB
   where
     eventsA = getTimeline as
     eventsB = getTimeline bs
@@ -826,6 +1032,42 @@ unsafeIntersectionWithEvent f as bs
         y@(Event (Interval (l2, r2)) _) = V.head ys
         i = mkInterval (max l1 l2) (min r1 r2)
         z = f i x y
+        
+unsafeIntersectionWithEvent'
+  :: forall t t' a b c
+  . Ord t
+  => (Interval t -> Event t a -> Event t b -> Event t' c)
+  -> V.Vector (Event t a)
+  -> V.Vector (Event t b)
+  -> V.Vector (Event t' c)
+unsafeIntersectionWithEvent' f t1 t2
+  | V.null t1 = V.empty
+  | V.null t2 = V.empty 
+  | otherwise = runST $ do
+    result <- M.new (2 * max (V.length t1) (V.length t2)) :: ST s (M.STVector s (Event t' c))
+    as <- V.thaw t1 :: ST s (M.STVector s (Event t a))
+    bs <- V.thaw t2 :: ST s (M.STVector s (Event t b))
+    q <- go 0 0 0 result as bs
+    let sliced_result = M.unsafeSlice 0 q result
+    V.freeze sliced_result
+  where
+    go i j q res xs ys = do 
+      x <- M.read xs i
+      y <- M.read ys j
+      
+      if end x < start y then do
+        go (i + 1) j q res xs ys
+      else if end y < start x then do
+        go i (j + 1) q res xs ys
+      else do
+        let newInterval = mkInterval (max (start x) (start y)) (min (end x) (end y))
+        M.write res q (f newInterval x y)
+        if end x <= end y then do
+          go (i + 1) j (q + 1) res xs ys
+        else do
+          go i (j + 1) (q + 1) res xs ys
+        
+    
 
 -- | /O(N)./ Shrink an (absolute) timeline by removing all the gaps between events.
 -- The result is a (relative) timeline with original (absolute) events.

@@ -1032,7 +1032,7 @@ unsafeIntersectionWithEvent f as bs
         y@(Event (Interval (l2, r2)) _) = V.head ys
         i = mkInterval (max l1 l2) (min r1 r2)
         z = f i x y
-        
+
 unsafeIntersectionWithEvent'
   :: forall t t' a b c
   . Ord t
@@ -1051,21 +1051,26 @@ unsafeIntersectionWithEvent' f t1 t2
     let sliced_result = M.unsafeSlice 0 q result
     V.freeze sliced_result
   where
-    go i j q res xs ys = do 
-      x <- M.read xs i
-      y <- M.read ys j
+    go i j q res xs ys = do
+      let xl = M.length xs
+      let yl = M.length ys
       
-      if end x < start y then do
-        go (i + 1) j q res xs ys
-      else if end y < start x then do
-        go i (j + 1) q res xs ys
-      else do
-        let newInterval = mkInterval (max (start x) (start y)) (min (end x) (end y))
-        M.write res q (f newInterval x y)
-        if end x <= end y then do
-          go (i + 1) j (q + 1) res xs ys
+      if i < xl && j < yl then do
+        x <- M.read xs i
+        y <- M.read ys j
+        
+        if end x < start y then do
+          go (i + 1) j q res xs ys
+        else if end y < start x then do
+          go i (j + 1) q res xs ys
         else do
-          go i (j + 1) (q + 1) res xs ys
+          let newInterval = mkInterval (max (start x) (start y)) (min (end x) (end y))
+          M.write res q (f newInterval x y)
+          if end x <= end y then do
+            go (i + 1) j (q + 1) res xs ys
+          else do
+            go i (j + 1) (q + 1) res xs ys
+      else do return q
         
     
 
@@ -1079,7 +1084,21 @@ shrink
 shrink diff events = V.zipWith Event intervals events
   where
     intervals = V.scanl1 step (V.map (toRel diff . getInterval) events)
-    step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur) 
+    step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
+
+shrinkTo
+  :: (Num rel, Ord rel)
+  => rel
+  -> (abs -> abs -> rel)
+  -> Timeline abs p
+  -> Timeline rel (Event abs p)
+shrinkTo point diff t = Timeline $ V.zipWith Event intervals events
+  where
+    events = getTimeline t
+    intervals = V.scanl1 step relIntervals
+    step (Interval (_, prevTo)) (Interval (_, dur)) = Interval (prevTo, prevTo + dur)
+    relIntervals = V.map (mkRelativeTo point . toRel diff . getInterval) events
+    mkRelativeTo x = Data.Timeline.Interval.shiftWith (+) x 
        
 
 -----------------------------------------------------------------------------
